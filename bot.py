@@ -8,12 +8,13 @@ load_dotenv()
 guild = Object(id=int(getenv("GUILD")))
 intents = Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='/', intents=intents)
+bot = commands.Bot(command_prefix='.', intents=intents)
 
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()
+    bot.tree.copy_global_to(guild=guild)
+    await bot.tree.sync(guild=guild)
     print(f"Logged in as {bot.user}.")
 
 
