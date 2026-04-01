@@ -56,9 +56,11 @@ pip install -r requirements.txt
 
 Create a `.env` file:
 
+```env
 TOKEN=your_discord_bot_token  
 GUILD=your_guild_id  
-URI=your_database_uri  
+URI=your_database_uri
+```
 
 ### 4. Initialize the database
 ```python  
@@ -67,7 +69,7 @@ URI=your_database_uri
 ```
 
 ### 5. Run the bot
-python bot.py
+`python bot.py`
 
 ---
 
