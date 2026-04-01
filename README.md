@@ -59,9 +59,10 @@ GUILD=your_guild_id
 URI=your_database_uri  
 
 ### 4. Initialize the database
-python  
+```python  
 >>> from db.database import init_db  
->>> init_db()  
+>>> init_db()
+```
 
 ### 5. Run the bot
 python bot.py
