@@ -21,7 +21,7 @@ def get_session():
     global _session
     if _session is None:
         _session = sessionmaker(bind=get_engine())
-    return _session
+    return _session()
 
 
 def init_db():

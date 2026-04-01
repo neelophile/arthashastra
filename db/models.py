@@ -14,7 +14,7 @@ class Citizen(Base):
     __tablename__ = 'citizens'
     user_id = Column(BigInteger, primary_key=True)
     current_job_id = Column(Integer, ForeignKey("jobs.job_id"))
-    job_level_id = Column(Integer, ForeignKey("job_levels.job_level_id")
+    job_level_id = Column(Integer, ForeignKey("job_levels.job_level_id"))
     last_quit = Column(DateTime)
     total_income = Column(Integer, default=0)
 
@@ -24,7 +24,7 @@ class Job(Base):
     job_id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(50), nullable=False)
     slug = Column(String(50), unique=True, nullable=False)
-    levels = relationship("JobLevel", back_populates="job")
+    levels = relationship("JobLevel", back_populates="job", foreign_keys=lambda: [JobLevel.job_id])
 
 
 class JobLevel(Base):
@@ -35,13 +35,13 @@ class JobLevel(Base):
     title = Column(String(50), nullable=False)
     xp_required = Column(Integer, nullable=False)
     promotes_to_job_id = Column(Integer, ForeignKey("jobs.job_id"))
-    job = relatiobship("Job", back_populates="levels", foreign_keys=[job_id])
+    job = relationship("Job", back_populates="levels", foreign_keys=lambda: [job_id])
 
 
 class JobXP(Base):
     __tablename__ = 'job_xp'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey("ciizens.user_id"), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
     job_id = Column(Integer, ForeignKey("jobs.job_id"), nullable=False)
     xp = Column(Integer, default=0)
 
