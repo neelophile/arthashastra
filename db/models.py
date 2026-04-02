@@ -19,6 +19,23 @@ class Citizen(Base):
     total_income = Column(Integer, default=0)
 
 
+class Wallet(Base):
+    __tablename__ = 'wallets'
+    user_id = Column(BigInteger, ForeignKey("citizens.user_id"), primary_key=True)
+    balance = Column(Integer, default=0)
+
+
+class Transaction(Base):
+    __tablename__ = 'transactions'
+    transaction_id = Column(Integer, primary_key=True, autoincrement=True)
+    from_id = Column(BigInteger, ForeignKey("citizens.user_id"))
+    to_id = Column(BigInteger, ForeignKey("citizens.user_id"))
+    amount = Column(Integer, nullable=False)
+    type = Column(Enum("payment", "tax", "fine", "treasury"), nullable=False)
+    bounty_id = Column(Integer, ForeignKey("bounties.bounty_id"))
+    timestamp = Column(DateTime, default=utcnow)
+
+
 class Job(Base):
     __tablename__ = 'jobs'
     job_id = Column(Integer, primary_key=True, autoincrement=True)
@@ -35,7 +52,7 @@ class JobLevel(Base):
     title = Column(String(50), nullable=False)
     xp_required = Column(Integer, nullable=False)
     promotes_to_job_id = Column(Integer, ForeignKey("jobs.job_id"))
-    job = relationship("Job", back_populates="levels", foreign_keys=lambda: [job_id])
+    job = relationship("Job", back_populates="levels", foreign_keys=lambda: [JobLevel.job_id])
 
 
 class JobXP(Base):
@@ -68,7 +85,7 @@ class NegotiationLog(Base):
 
 
 class EmploymentLog(Base):
-    __tablename__ = "employment_log"
+    __tablename__ = 'employment_log'
     log_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
     job_id = Column(Integer, ForeignKey("jobs.job_id"), nullable=False)
@@ -76,59 +93,22 @@ class EmploymentLog(Base):
     quit_at = Column(DateTime)
 
 
-class Election(Base):
-    __tablename__ = 'elections'
-    election_id = Column(Integer, primary_key=True, autoincrement=True)
-    type = Column(Enum("cabinet", "club"), nullable=False)
-    club_id = Column(Integer, ForeignKey("clubs.club_id"))
-    status = Column(Enum("upcoming", "party_window", "ongoing", "closed"), default="upcoming")
-    start_date = Column(DateTime, nullable=False)
-    created_by = Column(BigInteger, nullable=False)
-
-
-class Candidate(Base):
-    __tablename__ = 'candidates'
-    candidate_id = Column(Integer, primary_key=True, autoincrement=True)
-    election_id = Column(Integer, ForeignKey("elections.election_id"), nullable=False)
-    user_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
-    party_id = Column(Integer, ForeignKey("parties.party_id"))
-
-
-class Party(Base):
-    __tablename__ = 'parties'
-    party_id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(100), nullable=False)
-    leader_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
-    created_at = Column(DateTime, default=utcnow)
-
-
-class PartyMember(Base):
-    __tablename__ = 'party_members'
+class Treasury(Base):
+    __tablename__ = 'treasury'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    party_id = Column(Integer, ForeignKey("parties.party_id"), nullable=False)
-    user_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
-    joined_at = Column(DateTime, default=utcnow)
+    balance = Column(Integer, default=0)
 
 
-class Vote(Base):
-    __tablename__ = 'votes'
-    vote_id = Column(Integer, primary_key=True, autoincrement=True)
-    election_id = Column(Integer, ForeignKey("elections.election_id"), nullable=False)
-    voter_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
-    candidate_id = Column(Integer, ForeignKey("candidates.candidate_id"), nullable=False)
+class Fine(Base):
+    __tablename__ = 'fines'
+    fine_id = Column(Integer, primary_key=True, autoincrement=True)
+    issued_to = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
+    amount = Column(Integer, nullable=False)
+    reason = Column(Text, nullable=False)
 
 
-class Club(Base):
-    __tablename__ = 'clubs'
-    club_id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(100), nullable=False)
-    join_type = Column(Enum("open", "approval"), default="open")
-
-
-class ClubMember(Base):
-    __tablename__ = 'club_members'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    club_id = Column(Integer, ForeignKey("clubs.club_id"), nullable=False)
-    user_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
-    joined_at = Column(DateTime, default=utcnow)
+class Config(Base):
+    __tablename__ = 'config'
+    key = Column(String(50), primary_key=True)
+    value = Column(String(50), nullable=False)
 
