@@ -1,43 +1,47 @@
-# Dhurandhar
+# Arthashastra
 
-A Discord bot that implements an economy, job system, and basic governance features (elections, parties, and clubs) for a single server.
+A Discord bot that runs a gig economy game for a single server. Citizens take jobs, post and claim bounties, earn money, and get taxed by the government. Built to complement a governance-themed server.
 
 ---
 
 ## Features
 
 - **Jobs & Progression**
-  - Users can have jobs with levels and XP
-  - Tracks job history and income
+  - Citizens can take any available job freely
+  - Each job has its own XP-based level tree with promotions
+  - Some promotions transition into entirely new jobs (e.g. Lawyer → Judge)
+  - Quitting a job triggers a 48-hour re-employment cooldown
+
+- **Bounty System**
+  - Any member can post a bounty to the open market
+  - Employees claim and negotiate the prize in a private bot-managed channel
+  - Completion requires confirmation from both parties
+  - Unconfirmed completions auto-resolve after 48 hours
+  - XP awarded on completion, scaled to prize value
 
 - **Economy**
-  - Income tracking per user
-  - Foundation for rewards and future extensions
+  - Every citizen has a wallet
+  - All payments are processed through the bot
+  - Configurable tax rate deducted from every bounty payment
+  - Tax collected goes to a bot-managed government treasury
 
-- **Bounties**
-  - Users can create and accept tasks with rewards
-  - Includes basic negotiation logging
+- **Fines**
+  - The Chief Justice can issue fines against citizens
+  - Fines are deducted from wallets and logged as transactions
 
-- **Elections**
-  - Supports different election types (e.g. cabinet, club)
-  - Candidates and voting system
-
-- **Parties**
-  - Create and manage political parties
-  - Track membership
-
-- **Clubs**
-  - User-created groups with open or approval-based joining
+- **Leaderboard**
+  - Top earners and highest XP holders tracked server-wide
 
 ---
 
 ## Tech Stack
 
-- Python  
-- discord.py  
-- SQLAlchemy  
-- python-dotenv  
-- SQLite / PostgreSQL (via URI)
+- Python 3.12+
+- discord.py
+- SQLAlchemy
+- MariaDB
+- Alembic
+- python-dotenv
 
 ---
 
@@ -45,50 +49,69 @@ A Discord bot that implements an economy, job system, and basic governance featu
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/neelophile/dhurandhar.git  
-cd dhurandhar
+git clone https://github.com/neelophile/arthashastra.git
+cd arthashastra
 ```
 
 ### 2. Install dependencies
+```bash
 pip install -r requirements.txt
+```
 
 ### 3. Configure environment variables
 
 Create a `.env` file:
-
 ```env
-TOKEN=your_discord_bot_token  
-GUILD=your_guild_id  
-URI=your_database_uri
+TOKEN=your_discord_bot_token
+GUILD=your_guild_id
+URI=mysql+pymysql://user:password@localhost:3306/arthashastra
 ```
 
-### 4. Initialize the database
-```python  
->>> from db.database import init_db  
->>> init_db()
+### 4. Start MariaDB and run migrations
+```bash
+mariadbd-safe &
+alembic upgrade head
 ```
 
 ### 5. Run the bot
-`python bot.py`
+```bash
+python bot.py
+```
 
 ---
 
 ## Project Structure
 
-dhurandhar/  
-├── bot.py  
-├── db/  
-│   ├── models.py  
-│   └── database.py  
-└── .env  
+```
+arthashastra/
+├── bot.py
+├── config.json
+├── .env
+├── db/
+│   ├── models.py
+│   └── database.py
+├── cogs/
+│   ├── employment.py
+│   └── jobs/
+└── migrations/
+```
+
+---
+
+## Roadmap
+
+- [ ] Job-specific commands and unique mechanics per job
+- [ ] Dispute resolution for contested bounties
+- [ ] Treasury management commands for the Finance Minister
+- [ ] Fine history and appeal system
+- [ ] More jobs with unique progression trees
 
 ---
 
 ## Notes
 
-- Designed primarily for a single Discord server  
-- Not optimized for large-scale or multi-server deployment  
-- Some features may be incomplete  
+- Designed for a single Discord server
+- Not built for multi-server deployment
 
 ---
 
