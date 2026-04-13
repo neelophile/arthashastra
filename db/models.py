@@ -22,7 +22,7 @@ class Citizen(Base):
 class Wallet(Base):
     __tablename__ = 'wallets'
     user_id = Column(BigInteger, ForeignKey("citizens.user_id"), primary_key=True)
-    balance = Column(Integer, default=0)
+    balance = Column(Integer, default=100)
 
 
 class Transaction(Base):
@@ -112,3 +112,43 @@ class Config(Base):
     key = Column(String(50), primary_key=True)
     value = Column(String(50), nullable=False)
 
+
+class Election(Base):
+    __tablename__ = 'elections'
+    election_id = Column(Integer, primary_key=True, autoincrement=True)
+    type = Column(Enum("cabinet", "club"), nullable=False)
+    status = Column(Enum("ongoing", "closed"), default="ongoing")
+    end_date = Column(DateTime, nullable=False)
+    created_by = Column(BigInteger, nullable=False)
+
+
+class Candidate(Base):
+    __tablename__ = 'candidates'
+    candidate_id = Column(Integer, primary_key=True, autoincrement=True)
+    election_id = Column(Integer, ForeignKey("elections.election_id"), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
+    party_id = Column(Integer, ForeignKey("parties.party_id"))
+
+
+class Party(Base):
+    __tablename__ = 'parties'
+    party_id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    leader_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+
+
+class PartyMember(Base):
+    __tablename__ = 'party_members'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    party_id = Column(Integer, ForeignKey("parties.party_id"), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
+    joined_at = Column(DateTime, default=utcnow)
+
+
+class Vote(Base):
+    __tablename__ = 'votes'
+    vote_id = Column(Integer, primary_key=True, autoincrement=True)
+    election_id = Column(Integer, ForeignKey("elections.election_id"), nullable=False)
+    voter_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
+    candidate_id = Column(Integer, ForeignKey("candidates.candidate_id"), nullable=False)
