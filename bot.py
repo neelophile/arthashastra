@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from os import getenv
 from discord.ext import commands
 from db.database import init_db
-from google import genai
+from requests import post
 
 
 load_dotenv()
@@ -12,7 +12,37 @@ intents = Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='.', intents=intents)
 cogs = ['cogs.employment']
-client = genai.Client(api_key=getenv('GEMINI_API_KEY'))
+
+
+def summarise_text(text):
+    payload = {
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "Summarize this Discord chat like a chill server mod.\n"
+                    "- Understand Hinglish, slang, memes\n"
+                    "- Keep it casual, not formal\n"
+                    "- Highlight important and funny moments\n"
+                )
+            },
+            {
+                "role": "user",
+                "content": text
+            }
+        ],
+        "max_tokens": 200,
+        "temperature": 0.7
+    }
+    try:
+        response = post(getenv("LLAMA_URL"), json=payload, timeout=60)
+        return response.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def chunk_text(text, size=1500):
+    return [text[i:i+size] for i in range(0, len(text), size)]
 
 
 @bot.event
@@ -44,16 +74,19 @@ async def summarise(interaction: Interaction, count: int):
     messages = []
     async for i in interaction.channel.history(limit=count):
         if not i.author.bot:
-            messages.append(f"{i.author.display_name}: {i.content}")
+            messages.append(f"[{i.author.display_name}] {i.content}")
     if not messages:
         await interaction.followup.send("No messages found", ephemeral=True)
         return
     messages.reverse()
     transcript = "\n".join(messages)
-    response = client.models.generate_content(model="gemini-3.1-flash-lite-preview",
-                                              contents=f"Summarise the following Discord chat concisely:\n\n{transcript}")
+    chunks = chunk_text(transcript)
+    summaries = []
+    for chunk in chunks:
+        summaries.append(summarise_text(chunk))
+    final_summary = summarize_text(" ".join(summaries))
     embed = Embed(title="Here is your Summary!",
-                  description=response.text,
+                  description=final_summary[:4000],
                   color=Color.random())
     await interaction.followup.send(embed=embed)
 
