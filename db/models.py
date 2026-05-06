@@ -73,6 +73,7 @@ class Bounty(Base):
     status = Column(Enum("open", "taken", "completed", "disputed"), default="open")
     channel_id = Column(BigInteger)
     created_at = Column(DateTime, default=utcnow)
+    job_id = Column(Integer, ForeignKey("jobs.job_id"))
 
 
 class NegotiationLog(Base):
