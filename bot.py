@@ -10,6 +10,7 @@ load_dotenv()
 guild = Object(id=int(getenv("GUILD")))
 intents = Intents.default()
 intents.message_content = True
+intents.members = True
 bot = commands.Bot(command_prefix='.', intents=intents)
 cogs = ['cogs.employment']
 

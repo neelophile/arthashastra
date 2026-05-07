@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime, Text, BigInteger
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime, Text, BigInteger, Boolean
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime, timezone
 
@@ -17,6 +17,7 @@ class Citizen(Base):
     job_level_id = Column(Integer, ForeignKey("job_levels.job_level_id"))
     last_quit = Column(DateTime)
     total_income = Column(Integer, default=0)
+    profile_access = Column(Boolean, default=True)
 
 
 class Wallet(Base):

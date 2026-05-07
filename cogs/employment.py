@@ -1,4 +1,4 @@
-from discord import app_commands, Interaction, utils, ui, Embed, Color, ButtonStyle, Member
+from discord import app_commands, Interaction, utils, ui, Embed, Color, ButtonStyle, Member, AllowedMentions
 from discord.ext import commands, tasks
 from datetime import datetime, timezone, timedelta
 from db.database import get_session
@@ -8,7 +8,7 @@ from typing import Optional
 
 
 role = "Citizen (Lv 10 - 15)"
-taxers = {"Finance Minister", "Home Minister", "Prime Minister", "President"}
+admins = {"Finance Minister", "Home Minister", "Prime Minister", "President", "Chief Justice"}
 
 
 def has_role(interaction: Interaction, rolename: str):
@@ -419,7 +419,7 @@ class Employment(commands.Cog):
             customer = interaction.guild.get_member(bounty.customer_id)
             if channel:
                 view = NegotiateView(bounty_id=id, prize=prize, employee_id=interaction.user.id, customer=bounty.customer_id)
-                await channel.send(f"{customer.mention if customer else 'Customer'}, {interaction.user.display_name}  proposes **{prize}** coins", view=view)
+                await channel.send(f"{customer.mention if customer else 'Customer'}, {interaction.user.mention}  proposes **{prize}** coins", view=view, allowed_mentions=AllowedMentions(users=False))
             await interaction.response.send_message("Negotiation request sent.")
         finally:
             session.close()
@@ -440,19 +440,19 @@ class Employment(commands.Cog):
             customer = interaction.guild.get_member(bounty.customer_id)
             if channel:
                 view = CompleteView(bounty_id=id, employee_id=interaction.user.id, cog=self)
-                await channel.send(f"{customer.mention if customer else 'Customer'}, {interaction.user.display_name} has marked this bounty as complete.", view=view)
+                await channel.send(f"{customer.mention if customer else 'Customer'}, {interaction.user.mention} has marked this bounty as complete.", view=view, allowed_mentions=AllowedMentions(users=True))
             await interaction.response.send_message("Completion request sent.", ephemeral=True)
         finally:
             session.close()
 
 
-    @app_commands.command(name="profile", description="Your details.")
+    @app_commands.command(name="profile", description="Sends the statistics of the selected person.")
     async def profile(self, interaction: Interaction, member: Optional[Member] = None):
         target = member or interaction.user
         session = get_session()
         try:
             citizen = citizenship(session, target.id)
-            name = target.display_name
+            name = target.mention
             job = session.get(Job, citizen.current_job_id)
             job_title = job.title if job else "Unemployed"
             level = session.query(JobLevel).filter_by(job_level_id=citizen.job_level_id).first()
@@ -462,8 +462,8 @@ class Employment(commands.Cog):
             xp_needed = xp_next.xp_required if xp_next else "MAX"
             xp_count = xp.xp if xp else 0
             bounties = len(session.query(Bounty).filter_by(employee_id=target.id, status="completed").all())
-            if not citizen.profile_access and citizen.user_id != interaction.user.id and not has_roles(interaction, taxers):
-                await interaction.response.send_message("The profile you are trying to acess is private.", ephemeral=True)
+            if not citizen.profile_access and citizen.user_id != interaction.user.id and not has_roles(interaction, admins):
+                await interaction.response.send_message("The profile you are trying to access is private.", ephemeral=True)
                 return
             embed = Embed(title="Your Profile", color=Color.random())
             embed.add_field(name="Name:", value=name, inline=True)
@@ -477,15 +477,104 @@ class Employment(commands.Cog):
             session.close()
 
 
-    @app_commands.command(name="wallet", description="Money in your wallet.")
-    async def wallet(self, interaction: Interaction):
+    @app_commands.command(name="wallet", description="Displays balance in a person's aiccount.")
+    async def wallet(self, interaction: Interaction, member: Optional[Member] = None):
+        target = member or interaction.user
         session = get_session()
         try:
-            balance = session.query(Wallet).filter_by(user_id=interaction.user.id).first().balance
-            await interaction.response.send_message(f"You have {balance} coins in your wallet.")
+            citizen = citizenship(session, target.id)
+            wallet = session.query(Wallet).filter_by(user_id=citizen.user_id).first()
+            balance = wallet.balance if wallet else 0
+            if not citizen.profile_access and citizen.user_id != interaction.user.id and not has_roles(interaction, admins):
+                await interaction.response.send_message("The profile you are trying to access is private.", ephemeral=True)
+                return
+            msg = "You have" if target.id == interaction.user.id else f"{target.mention} has"
+            await interaction.response.send_message(f"{msg} {balance} coins in their wallet.", allowed_mentions=AllowedMentions(users=False))
         finally:
             session.close()
     
+
+    @app_commands.command(name="leaderboard", description="Shows the server leaderboards.")
+    async def leaderboard(self, interaction: Interaction):
+        session = get_session()
+        try:
+            citizen = session.query(Citizen).order_by(Citizen.total_income.desc()).limit(10).all()
+            embed = Embed(title="Here the the top 10 players of the server.", color=Color.random())
+            for i, j in enumerate(citizen, start=1):
+                member = interaction.guild.get_member(j.user_id)
+                name = member.mention if member else str(j.user_id)
+                embed.add_field(name=f"{i}", value=f"{name} — {j.total_income} coins in total.", inline=True)
+            await interaction.response.send_message(embed=embed)
+        finally:
+            session.close()
+
+
+    @app_commands.command(name="fine", description="Fine citizens with an amount.")
+    async def fine(self, interaction: Interaction, member: Member, amount: int, reason: Optional[str] = None):
+        session = get_session()
+        try:
+            if not has_roles(interaction, admins):
+                await interaction.response.send_message("This is an admin-only command.", ephemeral=True)
+                return
+            citizen = citizenship(session, member.id)
+            wallet = session.get(Wallet, member.id)
+            if not wallet or wallet.balance < amount:
+                await interaction.response.send_message("The citizen in context does not have enough balance.")
+                return
+            wallet.balance -= amount
+            treasury = session.query(Treasury).first()
+            treasury.balance += amount
+            session.add(Fine(issued_to=member.id, amount=amount, reason=reason))
+            session.add(Transaction(from_id=member.id, to_id=None, amount=amount, type="fine"))
+            session.commit()
+            await interaction.response.send_message(f"{member.mention} has been fined **{amount}** coins. Reason: {reason if reason else "None"}", allowed_mentions=AllowedMentions(users=False))
+            try:
+                await member.send(f"You have been fined with **{amount}** coins.")
+            except Exception:
+                pass
+        finally:
+            session.close()
+
+
+    @app_commands.command(name="send", description="Send someone coins.")
+    async def send(self, interaction: Interaction, amount: int, member: Member):
+        session = get_session()
+        try:
+            citizen = citizenship(session, interaction.user.id)
+            wallet = session.get(Wallet, interaction.user.id)
+            if member.id == interaction.user.id:
+                await interaction.response.send_message("Wanna send youself money? Get a job.", ephemeral=True)
+                return
+            if wallet.balance < amount:
+                await interaction.response.send_message("You don't have enough coins.", ephemeral=True)
+                return
+            wallet.balance -= amount
+            receiver = session.query(Wallet).filter_by(user_id=member.id).first()
+            receiver.balance += amount
+            session.add(Transaction(from_id=interaction.user.id, to_id=member.id, amount=amount, type="payment"))
+            session.commit()
+            await interaction.response.send_message(f"Transaction successful! You have transferred {amount} coins to {member.mention}.", allowed_mentions=AllowedMentions(users=False))
+            try:
+                await member.send(f"You have received {amount} from {interaction.user.mention}.")
+            except Exception:
+                pass
+        finally:
+            session.close()
+
+
+    @app_commands.command(name="treasury", description="Check the Server Treasury.")
+    async def treasury(self, interaction: Interaction):
+        session = get_session()
+        try:
+            if not has_roles(interaction, admins):
+                await interaction.response.send_message("This is an admin-only command.", ephemeral=True)
+                return
+            treasury_obj = session.query(Treasury).first()
+            await interaction.response.send_message(f"Treasury: {treasury_obj.balance} coins")
+            
+        finally:
+            session.close()
+
 
 async def setup(bot):
     await bot.add_cog(Employment(bot))
