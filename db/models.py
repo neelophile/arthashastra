@@ -154,3 +154,29 @@ class Vote(Base):
     election_id = Column(Integer, ForeignKey("elections.election_id"), nullable=False)
     voter_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
     candidate_id = Column(Integer, ForeignKey("candidates.candidate_id"), nullable=False)
+
+
+class Bank(Base):
+    __tablename__ = 'bank'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    balance = Column(Integer, default=0)
+    loan_interest_rate = Column(Integer, default=5)
+    deposit_interest_rate = Column(Integer, default=1)
+
+
+class Deposit(Base):
+    __tablename__ = 'deposits'
+    deposit_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
+    amount = Column(Integer, nullable=False)
+    deposited_at = Column(DateTime, default=utcnow)
+
+
+class Loan(Base):
+    __tablename__ = 'loans'
+    loan_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
+    amount = Column(Integer, nullable=False)
+    due_date = Column(DateTime, nullable=False)
+    repaid = Column(Boolean, default=False)
+    interest_rate = Column(Integer, nullable=False)

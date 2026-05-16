@@ -2,7 +2,7 @@ from discord import app_commands, Interaction
 from discord.ext import commands
 from db.models import Citizen, Config as Conf
 from db.database import get_session
-from employment import admins, has_roles
+from cogs.employment import admins, has_roles
 
 
 class Config(commands.Cog):
@@ -14,8 +14,8 @@ class Config(commands.Cog):
 
 
     @config_group.command(name="profile", description="Configure profile privacy.")
-    @config_group.describe(status="Modify access to your profile")
-    @config_group.autocomplete(status=app_commands.choices(app_commands.Choice(name="Public", value="public"), app_command.Choice(name="Private", value="private")))
+    @app_commands.describe(status="Modify access to your profile")
+    @app_commands.choices(status=[app_commands.Choice(name="Public", value="public"), app_commands.Choice(name="Private", value="private")])
     async def profile(self, interaction: Interaction, status: str):
         session = get_session()
         try:
@@ -31,7 +31,7 @@ class Config(commands.Cog):
 
 
     @config_group.command(name="tax", description="Configure tax rates.")
-    @config_group.describe(rate="The rate of tax.")
+    @app_commands.describe(rate="The rate of tax.")
     async def tax(self, interaction: Interaction, rate: int):
         if not has_roles(interaction, admins):
             await interaction.response.send_message("This is an admin-only command.", ephemeral=True)
