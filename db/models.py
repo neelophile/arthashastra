@@ -106,7 +106,7 @@ class Fine(Base):
     fine_id = Column(Integer, primary_key=True, autoincrement=True)
     issued_to = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
     amount = Column(Integer, nullable=False)
-    reason = Column(Text, nullable=False)
+    reason = Column(Text)
 
 
 class Config(Base):

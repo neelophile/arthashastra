@@ -1,4 +1,4 @@
-from discord import app_commands, Interaction, utils, ui, Embed, Color, ButtonStyle, Member, AllowedMentions
+from discord import app_commands, Interaction, utils, ui, Embed, Color, ButtonStyle, Member, AllowedMentions, TextStyle
 from discord.ext import commands, tasks
 from datetime import datetime, timezone, timedelta
 from db.database import get_session
@@ -50,6 +50,37 @@ async def autocomplete(interaction: Interaction, current: str):
         return [app_commands.Choice(name=i.title, value=i.slug) for i in jobs]
     finally:
         session.close()
+
+
+class BountyModal(ui.Modal, title="Issue a bounty."):
+    description = ui.TextInput(label="Description", style=TextStyle.long, placeholder="Describe what needs to be done...", required=True, max_length=500)
+
+
+    def __init__(self, for_job: str, prize: int):
+        super().__init__()
+        self.for_job = for_job
+        self.prize = prize
+
+
+    async def on_submit(self, interaction: Interaction):
+        session = get_session()
+        try:
+            wallet = session.get(Wallet, interaction.user.id)
+            if not wallet or wallet.balance < self.prize:
+                await interaction.response.send_message("You don't have enough coins.", ephemeral=True)
+                return
+            job_obj = session.query(Job).filter_by(slug=self.for_job).first()
+            if not job_obj:
+                await interaction.response.send_message("No such job.", ephemeral=True)
+                return
+            citizenship(session, interaction.user.id)
+            bounty_obj = Bounty(customer_id=interaction.user.id, description=self.description.value, job_id=job_obj.job_id, prize=self.prize)
+            session.add(bounty_obj)
+            session.flush()
+            session.commit()
+            await interaction.response.send_message(f"Bounty issued. ID: `{bounty_obj.bounty_id}`")
+        finally:
+            session.close()
 
 
 class Pages(ui.View):
@@ -266,6 +297,7 @@ class Employment(commands.Cog):
     
 
     @app_commands.command(name="employ", description="Get a job.")
+    @app_commands.describe(job="The job you want to take.")
     @app_commands.autocomplete(job=autocomplete)
     async def employ(self, interaction: Interaction, job: str):
         if not has_role(interaction, role):
@@ -329,27 +361,11 @@ class Employment(commands.Cog):
             session.close()
 
 
-    @app_commands.command(name="issue", description="Issue a bounty")
+    @app_commands.command(name="issue", description="Issue a bounty.")
+    @app_commands.describe(for_job="The job for which the bounty is meant.", prize="The reward money.")
     @app_commands.autocomplete(for_job=autocomplete)
-    async def issue(self, interaction: Interaction, description: str, for_job: str, prize: int):
-        session = get_session()
-        try:
-            wallet = session.get(Wallet, interaction.user.id)
-            if not wallet or wallet.balance < prize:
-                await interaction.response.send_message("You do not have enough money", ephemeral=True)
-                return
-            job_obj = session.query(Job).filter_by(slug=for_job).first()
-            if not job_obj:
-                await interaction.response.send_message("No such job", ephemeral=True)
-                return
-            citizen = citizenship(session, interaction.user.id)
-            bounty_obj = Bounty(customer_id=interaction.user.id, description=description, job_id=job_obj.job_id, prize=prize)
-            session.add(bounty_obj)
-            session.flush()
-            session.commit()
-            await interaction.response.send_message(f"Bounty has been issued. ID: {bounty_obj.bounty_id}")
-        finally:
-            session.close()
+    async def issue(self, interaction: Interaction, for_job: str, prize: int):
+        await interaction.response.send_modal(BountyModal(for_job=for_job, prize=prize))
 
 
     @app_commands.command(name="bounties", description="Check available bounties")
@@ -371,6 +387,7 @@ class Employment(commands.Cog):
 
 
     @app_commands.command(name="claim", description="Claim a bounty.")
+    @app_commands.describe(id="The ID of the bounty to be claimed.")
     async def claim(self, interaction: Interaction, id: int):
         session = get_session()
         try:
@@ -403,6 +420,7 @@ class Employment(commands.Cog):
 
 
     @app_commands.command(name="negotiate", description="Negotiate the prize money.")
+    @app_commands.describe(id="The ID of the bounty for which negotiation is initiated.", prize="The negotiated prize.")
     async def negotiate(self, interaction: Interaction, id: int, prize: int):
         session = get_session()
         try:
@@ -426,6 +444,7 @@ class Employment(commands.Cog):
 
 
     @app_commands.command(name="complete", description="Mark a bounty as complete.")
+    @app_commands.describe(id="The ID of the bounty which is completed.")
     async def complete(self, interaction: Interaction, id: int):
         session = get_session()
         try:
@@ -447,13 +466,14 @@ class Employment(commands.Cog):
 
 
     @app_commands.command(name="profile", description="Sends the statistics of the selected person.")
+    @app_commands.describe(member="The member whose profile is to be shown.")
     async def profile(self, interaction: Interaction, member: Optional[Member] = None):
         target = member or interaction.user
         session = get_session()
         try:
             citizen = citizenship(session, target.id)
             name = target.mention
-            job = session.get(Job, citizen.current_job_id)
+            job = session.get(Job, citizen.current_job_id) if citizen.current_job_id else None
             job_title = job.title if job else "Unemployed"
             level = session.query(JobLevel).filter_by(job_level_id=citizen.job_level_id).first()
             level_str = f"{level.level} — {level.title}" if level else 0
@@ -477,7 +497,8 @@ class Employment(commands.Cog):
             session.close()
 
 
-    @app_commands.command(name="wallet", description="Displays balance in a person's aiccount.")
+    @app_commands.command(name="wallet", description="Displays balance in a person's account.")
+    @app_commands.describe(member="The member whose wallet is to be shown.")
     async def wallet(self, interaction: Interaction, member: Optional[Member] = None):
         target = member or interaction.user
         session = get_session()
@@ -510,6 +531,7 @@ class Employment(commands.Cog):
 
 
     @app_commands.command(name="fine", description="Fine citizens with an amount.")
+    @app_commands.describe(member="The member to be fined.", amount="Fine amount.", reason="Reason of penalty.")
     async def fine(self, interaction: Interaction, member: Member, amount: int, reason: Optional[str] = None):
         session = get_session()
         try:
@@ -537,6 +559,7 @@ class Employment(commands.Cog):
 
 
     @app_commands.command(name="send", description="Send someone coins.")
+    @app_commands.describe(amount="The money to be sent.", member="The member who is to be sent money.")
     async def send(self, interaction: Interaction, amount: int, member: Member):
         session = get_session()
         try:
@@ -548,12 +571,16 @@ class Employment(commands.Cog):
             if wallet.balance < amount:
                 await interaction.response.send_message("You don't have enough coins.", ephemeral=True)
                 return
+            tax = int(amount * tax_rate(session))
+            net = amount - tax
             wallet.balance -= amount
             receiver = session.query(Wallet).filter_by(user_id=member.id).first()
-            receiver.balance += amount
+            receiver.balance += net
+            treasury = session.query(Treasury).first()
+            treasury.balance += tax
             session.add(Transaction(from_id=interaction.user.id, to_id=member.id, amount=amount, type="payment"))
             session.commit()
-            await interaction.response.send_message(f"Transaction successful! You have transferred {amount} coins to {member.mention}.", allowed_mentions=AllowedMentions(users=False))
+            await interaction.response.send_message(f"Transaction successful! You have transferred {net} coins to {member.mention} (Tax deducted: {tax} coins).", allowed_mentions=AllowedMentions(users=False))
             try:
                 await member.send(f"You have received {amount} from {interaction.user.mention}.")
             except Exception:
@@ -570,8 +597,7 @@ class Employment(commands.Cog):
                 await interaction.response.send_message("This is an admin-only command.", ephemeral=True)
                 return
             treasury_obj = session.query(Treasury).first()
-            await interaction.response.send_message(f"Treasury: {treasury_obj.balance} coins")
-            
+            await interaction.response.send_message(f"Treasury: {treasury_obj.balance} coins") 
         finally:
             session.close()
 
