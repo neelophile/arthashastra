@@ -12,14 +12,17 @@ intents = Intents.default()
 intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix='.', intents=intents)
-cogs = ['cogs.employment']
+cogs = ['cogs.employment', 'cogs.config']
+
+
+async def setup_hook():
+    for i in cogs:
+        await bot.load_extension(i)
 
 
 @bot.event
 async def on_ready():
     init_db()
-    for i in cogs:
-        await bot.load_extension(i)
     bot.tree.copy_global_to(guild=guild)
     await bot.tree.sync(guild=guild)
     print(f"Logged in as {bot.user}.")
@@ -35,4 +38,5 @@ async def ping(interaction: Interaction):
     await interaction.response.send_message(f"Pong! Response with {round(bot.latency * 1000)}ms")
 
 
+bot.setup_hook = setup_hook
 bot.run(getenv("TOKEN"))
