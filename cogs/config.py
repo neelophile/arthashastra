@@ -2,7 +2,7 @@ from discord import app_commands, Interaction
 from discord.ext import commands
 from db.models import Citizen, Config as Conf
 from db.database import get_session
-from cogs.employment import admins, has_roles
+from cogs.employment import admins, has_roles, citizenship
 
 
 class Config(commands.Cog):
@@ -19,7 +19,7 @@ class Config(commands.Cog):
     async def profile(self, interaction: Interaction, status: str):
         session = get_session()
         try:
-            citizen = session.get(Citizen, interaction.user.id)
+            citizen = citizenship(session, interaction.user.id)
             if not citizen:
                 await interaction.response.send_message("You are not registered yet.", ephemeral=True)
                 return
