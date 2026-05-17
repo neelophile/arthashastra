@@ -25,7 +25,7 @@ class Config(commands.Cog):
                 return
             citizen.profile_access = status == "public"
             session.commit()
-            await interaction.response.send_message(f"Your profile access has been set to {status}")
+            await interaction.response.send_message(f"Your profile access has been set to {status}.")
         finally:
             session.close()
 
@@ -45,7 +45,7 @@ class Config(commands.Cog):
             if config:
                 config.value = str(rate)
             else:
-                session.add(ConfigModel(key="tax_rate", value=str(rate)))
+                session.add(Conf(key="tax_rate", value=str(rate)))
             session.commit()
             await interaction.response.send_message(f"Tax rate set to **{rate}%**.")
         finally:
