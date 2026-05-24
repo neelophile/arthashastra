@@ -68,7 +68,7 @@ class Banking(commands.Cog):
             
 
     @app_commands.command(name="loan", description="Request a loan from the bank.")
-    @app_commands.describe(amoumt="Amount to be requested.")
+    @app_commands.describe(amount="Amount to be requested.")
     async def loan(self, interaction: Interaction, amount: int):
         session = get_session()
         try:
