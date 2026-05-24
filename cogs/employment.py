@@ -255,12 +255,10 @@ class Employment(commands.Cog):
             now = utcnow()
             taken = session.query(Bounty).filter_by(status='taken').all()
             for i in taken:
-                if i.created_at.tzinfo is None:
-                    created = i.created_at.replace(tzinfo=timezone.utc)
-                else:
-                   created = i.created_at
-                if now >= created + timedelta(hours=48):
-                    await self.payment(i, session)
+                if i.claimed_at:
+                    claimed = i.claimed_at.replace(tzinfo=timezone.utc) if i.claimed_at.tzinfo is None else i.claimed_at
+                    if now >= claimed + timedelta(hours=48):
+                        await self.payment(i, session)
         finally:
             session.close()
 
@@ -413,6 +411,7 @@ class Employment(commands.Cog):
             bounty.employee_id = interaction.user.id
             bounty.channel_id = channel.id
             bounty.status = "taken"
+            bounty.claimed_at = utcnow()
             session.commit()
             await interaction.response.send_message(f"Your Bounty ID is: {bounty.bounty_id}. Visit <#{channel.id}> to discuss further with your client.")
         finally:
@@ -509,8 +508,8 @@ class Employment(commands.Cog):
             if not citizen.profile_access and citizen.user_id != interaction.user.id and not has_roles(interaction, admins):
                 await interaction.response.send_message("The profile you are trying to access is private.", ephemeral=True)
                 return
-            msg = "You have" if target.id == interaction.user.id else f"{target.mention} has"
-            await interaction.response.send_message(f"{msg} {balance} coins in their wallet.", allowed_mentions=AllowedMentions(users=False))
+            msg = f"You have {balance} coins in your wallet." if target.id == interaction.user.id else f"{target.mention} has {balance} coins in their wallet."
+            await interaction.response.send_message(f"{msg}", allowed_mentions=AllowedMentions(users=False))
         finally:
             session.close()
     
@@ -549,7 +548,7 @@ class Employment(commands.Cog):
             session.add(Fine(issued_to=member.id, amount=amount, reason=reason))
             session.add(Transaction(from_id=member.id, to_id=None, amount=amount, type="fine"))
             session.commit()
-            await interaction.response.send_message(f"{member.mention} has been fined **{amount}** coins. Reason: {reason if reason else "None"}", allowed_mentions=AllowedMentions(users=False))
+            await interaction.response.send_message(f"{member.mention} has been fined **{amount}** coins. Reason: {reason if reason else 'None'}", allowed_mentions=AllowedMentions(users=False))
             try:
                 await member.send(f"You have been fined with **{amount}** coins.")
             except Exception:

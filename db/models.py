@@ -18,6 +18,7 @@ class Citizen(Base):
     last_quit = Column(DateTime)
     total_income = Column(Integer, default=0)
     profile_access = Column(Boolean, default=True)
+    cibil_score = Column(Integer, default=750)
 
 
 class Wallet(Base):
@@ -75,6 +76,7 @@ class Bounty(Base):
     channel_id = Column(BigInteger)
     created_at = Column(DateTime, default=utcnow)
     job_id = Column(Integer, ForeignKey("jobs.job_id"))
+    claimed_at = Column(DateTime)
 
 
 class NegotiationLog(Base):
