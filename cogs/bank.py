@@ -7,11 +7,19 @@ from datetime import datetime, timezone
 
 
 def deposit_interest_rate(session):
-    config = session.get(Config, "deposit_tax_rate")
+    config = session.get(Config, "deposit_interest_rate")
     if config:
         return float(config.value) / 100
     else:
         return 0.01
+
+
+def loan_interest_rate(session):
+    config = session.get(Config, "loan_interest_rate")
+    if config:
+        return float(config.value) / 100
+    else:
+        return 0.05
 
 
 class Banking(commands.Cog):
@@ -73,7 +81,29 @@ class Banking(commands.Cog):
         session = get_session()
         try:
             citizen = citizenship(session, interaction.user.id)
-
+            wallet = session.query(Wallet).filter_by(user_id=citizen.user_id).first()
+            bank_obj = session.query(Bank).first()
+            if not bank_obj or bank_obj.balance < amount:
+                await interaction.response.send_message("The bank doesn't have required funds.", ephemeral=True)
+                return
+            if citizen.cibil_score >= 750:
+                loanable = wallet.balance * 3
+            elif citizen.cibil_score >= 650:
+                loanable = wallet.balance * 2
+            elif citizen.cibil_score < 450:
+                await interaction.response.send_message("Your CIBIL Score is too low to seek the loan.", ephemeral=True)
+                return
+            if amount > loanable:
+                await interaction.response.send_message(f"Your CIBIL Score allows only a maximum of {loanable} coins to be lent.", ephemeral=True)
+                return
+            interest_rate = int(loan_interest_rate() * 100)
+            due_date = utcnow() + timedelta(days=7)
+            session.add(Loan(user_id=citizen.user_id, amount=amount, due_date=due_date, repaid=False, interest_rate=interest_rate))
+            session.add(Transaction(from_id=None, to_id=citizen.user_id, amount=amount, type="loan"))
+            wallet.balance += amount
+            bank_obj.balance -= amount
+            session.commit()
+            await interaction.response.send_message(f"Loan of {amount} coins approved. You must repay **{amount + int(loan_interest_rate() * amount / 100)}** by <t:{int(due_date.timestamp())}:D>.")
         finally:
             session.close()
 
@@ -82,7 +112,10 @@ class Banking(commands.Cog):
     @app_commands.describe(id="Loan ID")
     async def repay(self, interaction: Interaction, id: int):
         session = get_session()
-
+        try:
+            citizen = citizenship(session, interaction.user.id)
+        finally:
+            session.close()
 
 
     @app_commands.command(name="bankinfo", description="View bank status.")
@@ -94,7 +127,7 @@ class Banking(commands.Cog):
                 await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
                 return
             bank_obj = session.query(Bank).first()
-            embed = Embed(title="Bamk Details", color=Color.random())
+            embed = Embed(title="Bank Details", color=Color.random())
             embed.add_field(name="Balance:", value=bank_obj.balance, inline=False)
             embed.add_field(name="Deposit Interest Rate:", value=bank_obj.deposit_interest_rate, inline=False)
             embed.add_field(name="Loan Interest Rate:", value=bank_obj.loan_interest_rate, inline=False)
