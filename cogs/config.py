@@ -55,7 +55,7 @@ class Config(commands.Cog):
 
 
     @config_group.command(name="loan", description="Configure loan settings.")
-    @app_commands.describe(loan_id="ID of the Loan which is to be modified.", days="Due days till loan repayment.", rate"Rate of interest applied on repayment.")
+    @app_commands.describe(loan_id="ID of the Loan which is to be modified.", days="Due days till loan repayment.", rate="Rate of interest applied on repayment.")
     async def loan(self, interaction: Interaction, loan_id: int, days: Optional[int] = None, rate: Optional[int] = None):
         if not has_roles(interaction, admins | {"Banker"}):
             await interaction.response.send_message("This is a banker-only command.", ephemeral=True)
