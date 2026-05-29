@@ -182,3 +182,4 @@ class Loan(Base):
     due_date = Column(DateTime, nullable=False)
     repaid = Column(Boolean, default=False)
     interest_rate = Column(Integer, nullable=False)
+    penalised = Column(Boolean, default=False)

@@ -1,5 +1,5 @@
 from discord import app_commands, Interaction, Embed, Color
-from discord.ext import commands
+from discord.ext import commands, tasks
 from db.database import get_session
 from db.models import Bank, Deposit, Loan, Citizen, Wallet, Config, utcnow, Transaction
 from cogs.employment import citizenship, admins, has_roles
@@ -52,15 +52,33 @@ class Banking(commands.Cog):
                     wallet.balance -= total
                     bank_obj.balance += total
                     i.repaid = True
-                    citizen.cibil_score -= 100
+                    if not i.penalised:
+                        citizen.cibil_score -= 100
+                        i.penalised = True
+                    guild = self.bot.guilds[0]
+                    member = guild.get_member(i.user_id)
+                    if member:
+                        try:
+                            await member.send(f"Your loan of **{total}** coins has been auto-repaid. Due to negligence, Your CIBIL Score has been decreased by 100 points.")
+                        except Exception:
+                            pass
                 elif wallet.balance > 0:
                     bank_obj.balance += wallet.balance
                     i.amount -= wallet.balance
                     wallet.balance = 0
-                    citizen.cibil_score -= 100
+                    if not i.penalised:
+                        citizen.cibil_score -= 100
+                        i.penalised = True
+                    guild = self.bot.guilds[0]
+                    member = guild.get_member(i.user_id)
+                    if member:
+                        try:
+                            await member.send(f"Partial auto-repayment has been processed on your loan. Remaining amount to pay: **{i.amount}** coins.")
+                        except Exception:
+                            pass
                 session.commit()
-            finally:
-                session.close()
+        finally:
+            session.close()
 
 
     @app_commands.command(name="deposit", description="Deposit coins in your bank.")
@@ -152,6 +170,26 @@ class Banking(commands.Cog):
         session = get_session()
         try:
             citizen = citizenship(session, interaction.user.id)
+            loan = session.query(Loan).filter_by(user_id=citizen.user_id, loan_id=id).first()
+            if not loan:
+                await interaction.response.send_message("No such loan exists.", ephemeral=True)
+                return
+            if loan.repaid:
+                await interaction.response.send_message("This loan has already been paid.", ephemeral=True)
+                return
+            total = loan.amount + int(loan.amount * loan.interest_rate / 100)
+            wallet = session.query(Wallet).filter_by(user_id=citizen.user_id).first()
+            bank_obj = session.query(Bank).first()
+            if wallet.balance < total:
+                await interaction.response.send_message("You do not have enough balance to repay the loan.", ephemeral=True)
+                return
+            wallet.balance -= total
+            bank_obj.balance += total
+            citizen.cibil_score += 50
+            loan.repaid = True
+            session.add(Transaction(from_id=citizen.user_id, to_id=None, amount=total, type='loan'))
+            await interaction.response.send_message(f"Loan successfully repaid. Total payment: **{total}** coins. CIBIL Score has been raised by 50 points.")
+            session.commit()
         finally:
             session.close()
 
@@ -177,7 +215,20 @@ class Banking(commands.Cog):
     @app_commands.command(name="bank", description="Check your bank details.")
     async def banks(self, interaction: Interaction):
         session = get_session()
-
+        try:
+            citizen = citizenship(session, interaction.user.id)
+            deposited = session.query(Deposit).filter_by(user_id=citizen.user_id).first()
+            embed = Embed(title="Your bank details.", color=Color.random())
+            embed.add_field(name="Your balance:", value=deposited.amount if deposited else 0, inline=False)
+            embed.add_field(name="Your CIBIL Score:", value=citizen.cibil_score, inline=False)
+            loans = session.query(Loan).filter_by(user_id=citizen.user_id, repaid=False).all()
+            embed.add_field(name="Active Loans:", value="None" if not loans else "\u200b", inline=False)
+            for i in loans:
+                total = i.amount + int(i.amount * i.interest_rate / 100)
+                embed.add_field(name=f"Loan No. #{i.loan_id}", value=f"Remaining: {i.amount}  | Interest: {i.interest_rate}% | Total Due: {total} |  Due Date: <t:{int(i.due_date.timestamp())}:D>", inline=False)
+            await interaction.response.send_message(embed=embed)
+        finally:
+            session.close()
 
 
 async def setup(bot):
