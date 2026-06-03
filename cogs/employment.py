@@ -286,6 +286,25 @@ class Employment(commands.Cog):
         job_xp = session.query(JobXP).filter_by(user_id=bounty.employee_id, job_id=employee_citizen.current_job_id).first()
         if job_xp:
             job_xp.xp += xp_earned
+            current_level = session.get(JobLevel, employee_citizen.job_level_id)
+            if current_level:
+                next_level = session.query(JobLevel).filter_by(job_id=employee_citizen.current_job_id, level=current_level.level+1).first()
+                if next_level and job_xp.xp >= next_level.xp_required:
+                    if next_level.promotes_to_job_id:
+                        employee_citizen.current_job_id = next_level.promotes_to_job_id
+                        new_first_level = session.query(JobLevel).filter_by(job_id=next_level.promotes_to_job_id, level=1).first()
+                        employee_citizen.job_level_id = new_first_level.job_level_id if new_first_level else None
+                        new_job = session.get(Job, next_level.promotes_to_job_id)
+                        promo_msg = f"Congratulations! You've been promoted to **{new_job.title}**."
+                    else:
+                        employee_citizen.job_level_id = next_level.job_level_id
+                        promo_msg = f"Congratulations! You've attained **{next_level.title}**."
+                    member = guild.get_member(bounty.employee_id)
+                    if member:
+                        try:
+                            await member.send(promo_msg)
+                        except Exception:
+                            pass
         bounty.status = "completed"
         session.commit()
         guild = self.bot.guilds[0]
@@ -334,6 +353,9 @@ class Employment(commands.Cog):
             else: 
                 citizen.job_level_id = None
             session.commit()
+            job_role = utils.get(interaction.guild.roles, name=job_object.title)
+            if job_role:
+                await interaction.user.add_roles(job_roles)
             await interaction.response.send_message(f"Your new job is now: {job_object.title}")
         finally:
             session.close()
@@ -354,6 +376,10 @@ class Employment(commands.Cog):
             if log:
                 log.quit_at = utcnow()
             session.commit()
+            job = session.get(Job, citizen.currenr_job_id)
+            job_role = utils.get(interaction.guild.roles, name=job.title)
+            if job_role:
+                await interaction.user.remove_roles(job_role)
             await interaction.response.send_message("You have quit your job.")
         finally:
             session.close()
