@@ -306,8 +306,8 @@ class Employment(commands.Cog):
                         except Exception:
                             pass
         bounty.status = "completed"
+        guild = self.bots.guilds[0]     
         session.commit()
-        guild = self.bot.guilds[0]
         channel = guild.get_channel(bounty.channel_id)
         if channel:
             await channel.send(f"Bounty auto-completed. Net coins **{net}** coins paid to employee, **{tax}** coins taxed.")
@@ -355,7 +355,7 @@ class Employment(commands.Cog):
             session.commit()
             job_role = utils.get(interaction.guild.roles, name=job_object.title)
             if job_role:
-                await interaction.user.add_roles(job_roles)
+                await interaction.user.add_roles(job_role)
             await interaction.response.send_message(f"Your new job is now: {job_object.title}")
         finally:
             session.close()
@@ -369,6 +369,8 @@ class Employment(commands.Cog):
             if not citizen.current_job_id:
                 await interaction.response.send_message("You are already unemployed", ephemeral=True)
                 return
+            job = session.get(Job, citizen.current_job_id)
+            job_role = utils.get(interaction.guild.roles, name=job.title) if job else None
             citizen.current_job_id = None
             citizen.job_level_id = None
             citizen.last_quit = utcnow()
@@ -376,8 +378,6 @@ class Employment(commands.Cog):
             if log:
                 log.quit_at = utcnow()
             session.commit()
-            job = session.get(Job, citizen.currenr_job_id)
-            job_role = utils.get(interaction.guild.roles, name=job.title)
             if job_role:
                 await interaction.user.remove_roles(job_role)
             await interaction.response.send_message("You have quit your job.")
