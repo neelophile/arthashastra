@@ -501,7 +501,7 @@ class Employment(commands.Cog):
             name = target.mention
             job = session.get(Job, citizen.current_job_id) if citizen.current_job_id else None
             job_title = job.title if job else "Unemployed"
-            gov_roles = {"Prime Minister", "Home Minister", "Finance Minister", "Defence Minister", "Cultural Minister", "Wildlife Minister", "External Affairs Minister", "Speaker"}
+            gov_roles = {"President", "Prime Minister", "Home Minister", "Finance Minister", "Defence Minister", "Cultural Minister", "Wildlife Minister", "External Affairs Minister", "Speaker", "Chief Justice", "Chief Election Commissioner"}
             portfolio = next((r.name for r in target.roles if r.name in gov_roles), None)
             if job and portfolio:
                 job_display = f"{job_title} | {portfolio}"
@@ -517,7 +517,7 @@ class Employment(commands.Cog):
             xp_count = xp.xp if xp else 0
             bounties = len(session.query(Bounty).filter_by(employee_id=target.id, status="completed").all())
             if not citizen.profile_access and citizen.user_id != interaction.user.id and not has_roles(interaction, admins):
-                await interaction.response.send_message("The profile you are trying to access is private.", ephemeral=True)
+                await interaction.followup.send("The profile you are trying to access is private.", ephemeral=True)
                 return
             embed = Embed(title="Your Profile", color=Color.random())
             embed.add_field(name="Name:", value=name, inline=True)
