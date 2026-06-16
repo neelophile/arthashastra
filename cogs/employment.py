@@ -493,6 +493,7 @@ class Employment(commands.Cog):
     @app_commands.command(name="profile", description="Sends the statistics of the selected person.")
     @app_commands.describe(member="The member whose profile is to be shown.")
     async def profile(self, interaction: Interaction, member: Optional[Member] = None):
+        await interaction.response.defer()
         target = member or interaction.user
         session = get_session()
         try:
@@ -500,6 +501,14 @@ class Employment(commands.Cog):
             name = target.mention
             job = session.get(Job, citizen.current_job_id) if citizen.current_job_id else None
             job_title = job.title if job else "Unemployed"
+            gov_roles = {"Prime Minister", "Home Minister", "Finance Minister", "Defence Minister", "Cultural Minister", "Wildlife Minister", "External Affairs Minister", "Speaker"}
+            portfolio = next((r.name for r in target.roles if r.name in gov_roles), None)
+            if job and portfolio:
+                job_display = f"{job_title} | {portfolio}"
+            elif portfolio:
+                job_display = portfolio
+            else:
+                job_display = job_title
             level = session.query(JobLevel).filter_by(job_level_id=citizen.job_level_id).first()
             level_str = f"{level.level} — {level.title}" if level else 0
             xp = session.query(JobXP).filter_by(user_id=target.id, job_id=citizen.current_job_id).first()
@@ -512,12 +521,12 @@ class Employment(commands.Cog):
                 return
             embed = Embed(title="Your Profile", color=Color.random())
             embed.add_field(name="Name:", value=name, inline=True)
-            embed.add_field(name="Job:", value=job_title, inline=True)
+            embed.add_field(name="Job:", value=job_display, inline=True)
             embed.add_field(name="Level:", value=level_str, inline=True)
             embed.add_field(name="XP:", value=f"{xp_count}/{xp_needed}", inline=True)
             embed.add_field(name="Bounties completed:", value=bounties, inline=True)
             embed.set_thumbnail(url=target.display_avatar.url)
-            await interaction.response.send_message(embed=embed)
+            await interaction.followup.send(embed=embed)
         finally:
             session.close()
 
