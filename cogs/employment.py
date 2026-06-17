@@ -509,7 +509,7 @@ class Employment(commands.Cog):
                 job_display = portfolio
             else:
                 job_display = job_title
-            level = session.query(JobLevel).filter_by(job_level_id=citizen.job_level_id).first()
+            level = session.get(JobLevel, citizen.job_level_id)
             level_str = f"{level.level} — {level.title}" if level else 0
             xp = session.query(JobXP).filter_by(user_id=target.id, job_id=citizen.current_job_id).first()
             xp_next = session.query(JobLevel).filter_by(job_id=citizen.current_job_id, level=level.level + 1).first() if level else None
