@@ -12,7 +12,7 @@ intents = Intents.default()
 intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix='.', intents=intents)
-cogs = ['cogs.employment', 'cogs.config']
+cogs = ['cogs.employment', 'cogs.config', 'cogs.bank', 'cogs.elections']
 
 
 async def setup_hook():

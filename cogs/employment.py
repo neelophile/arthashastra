@@ -266,6 +266,7 @@ class Employment(commands.Cog):
     async def payment(self, bounty: Bounty, session):
         if not bounty.prize or not bounty.employee_id:
             return
+        guild = self.bot.guilds[0]
         taxrate = tax_rate(session)
         tax = int(bounty.prize * taxrate)
         net = bounty.prize - tax
@@ -306,7 +307,6 @@ class Employment(commands.Cog):
                         except Exception:
                             pass
         bounty.status = "completed"
-        guild = self.bots.guilds[0]     
         session.commit()
         channel = guild.get_channel(bounty.channel_id)
         if channel:
