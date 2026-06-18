@@ -183,3 +183,5 @@ class Loan(Base):
     repaid = Column(Boolean, default=False)
     interest_rate = Column(Integer, nullable=False)
     penalised = Column(Boolean, default=False)
+    taken_at = Column(DateTime, default=utcnow)
+
