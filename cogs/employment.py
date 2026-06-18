@@ -5,6 +5,7 @@ from db.database import get_session
 from math import log, ceil
 from db.models import Citizen, Job, JobLevel, JobXP, Transaction, Wallet, Bounty, NegotiationLog, EmploymentLog, Treasury, Fine, Config, utcnow
 from typing import Optional
+from asyncio import sleep
 
 
 role = "Citizen (Lv 10 - 15)"
@@ -311,6 +312,8 @@ class Employment(commands.Cog):
         channel = guild.get_channel(bounty.channel_id)
         if channel:
             await channel.send(f"Bounty auto-completed. Net coins **{net}** coins paid to employee, **{tax}** coins taxed.")
+            sleep(3600*24)
+            await channel.delete()
     
 
     @app_commands.command(name="employ", description="Get a job.")
@@ -574,8 +577,8 @@ class Employment(commands.Cog):
                 return
             citizen = citizenship(session, member.id)
             wallet = session.get(Wallet, member.id)
-            if not wallet or wallet.balance < amount:
-                await interaction.response.send_message("The citizen in context does not have enough balance.")
+            if not wallet:
+                await interaction.response.send_message("This citizen has no wallet.", ephemeral=True)
                 return
             wallet.balance -= amount
             treasury = session.query(Treasury).first()

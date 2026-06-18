@@ -152,6 +152,9 @@ class Banking(commands.Cog):
             if amount > loanable:
                 await interaction.response.send_message(f"Your CIBIL Score allows only a maximum of {loanable} coins to be lent.", ephemeral=True)
                 return
+            if (utcnow() - loan.taken_at).total_seconds < (86400*2):
+                await interaction.response.send_message("You must hold the loan for at least 24 hours before repaying.", ephemeral=True)
+                return
             interest_rate = int(loan_interest_rate(session) * 100)
             due_date = utcnow() + timedelta(days=7)
             session.add(Loan(user_id=citizen.user_id, amount=amount, due_date=due_date, repaid=False, interest_rate=interest_rate))
@@ -206,7 +209,7 @@ class Banking(commands.Cog):
             embed = Embed(title="Bank Details", color=Color.random())
             embed.add_field(name="Balance:", value=bank_obj.balance, inline=False)
             embed.add_field(name="Deposit Interest Rate:", value=f"{deposit_interest_rate(session) * 100}%", inline=False)
-            embed.add_field(name="Loan Interest Rate:", value=f"{loan_interest_rate(session) * 100}", inline=False)
+            embed.add_field(name="Loan Interest Rate:", value=f"{loan_interest_rate(session) * 100}%", inline=False)
             await interaction.response.send_message(embed=embed)
         finally:
             session.close()
