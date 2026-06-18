@@ -152,9 +152,6 @@ class Banking(commands.Cog):
             if amount > loanable:
                 await interaction.response.send_message(f"Your CIBIL Score allows only a maximum of {loanable} coins to be lent.", ephemeral=True)
                 return
-            if (utcnow() - loan.taken_at).total_seconds < (86400*2):
-                await interaction.response.send_message("You must hold the loan for at least 24 hours before repaying.", ephemeral=True)
-                return
             interest_rate = int(loan_interest_rate(session) * 100)
             due_date = utcnow() + timedelta(days=7)
             session.add(Loan(user_id=citizen.user_id, amount=amount, due_date=due_date, repaid=False, interest_rate=interest_rate))
@@ -185,6 +182,9 @@ class Banking(commands.Cog):
             bank_obj = session.query(Bank).first()
             if wallet.balance < total:
                 await interaction.response.send_message("You do not have enough balance to repay the loan.", ephemeral=True)
+                return
+            if (utcnow() - loan.taken_at).total_seconds > 86400*2:
+                await interaction.response.send_message("You must hold the loan for at least 24 hours before repaying.", ephemeral=True)
                 return
             wallet.balance -= total
             bank_obj.balance += total
