@@ -33,7 +33,7 @@ class Transaction(Base):
     from_id = Column(BigInteger, ForeignKey("citizens.user_id"))
     to_id = Column(BigInteger, ForeignKey("citizens.user_id"))
     amount = Column(Integer, nullable=False)
-    type = Column(Enum("payment", "tax", "fine", "treasury", "loan"), nullable=False)
+    type = Column(Enum('payment', 'tax', 'fine', 'treasury', 'loan', 'repay'), nullable=False)
     bounty_id = Column(Integer, ForeignKey("bounties.bounty_id"))
     timestamp = Column(DateTime, default=utcnow)
 
