@@ -183,7 +183,7 @@ class Banking(commands.Cog):
             if wallet.balance < total:
                 await interaction.response.send_message("You do not have enough balance to repay the loan.", ephemeral=True)
                 return
-            if loan.taken_at and (utcnow().replace(tzinfo=None) - loan.taken_at).total_seconds() > 86400*2:
+            if loan.taken_at and (utcnow().replace(tzinfo=None) - loan.taken_at).total_seconds() < 86400*2:
                 await interaction.response.send_message("You must hold the loan for at least 24 hours before repaying.", ephemeral=True)
                 return
             wallet.balance -= total
