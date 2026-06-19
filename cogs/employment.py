@@ -85,22 +85,78 @@ class BountyModal(ui.Modal, title="Issue a bounty."):
 
 
 class Pages(ui.View):
-    def __init__(self, bounties, author, size=5):
+    def __init__(self, bounties, author, cog):
         super().__init__()
         self.bounties = bounties
-        self.size = size
+        self.size = 5
         self.author = author
         self.page = 0
+        self.cog = cog
+        self.update_buttons()
+
+
+    def get_chunk(self):
+        start = self.page * self.size
+        return self.bounties[start:start + self.size]
 
 
     def get_embed(self):
-        start = self.page * self.size
-        chunk = self.bounties[start:start + self.size]
-        embed = Embed(title="Open Bounties", color=Color.random())
+        chunk = self.get_chunk()
+        desc = ""
         for i in chunk:
-            embed.add_field(name=f"ID: {i.bounty_id}", value=f"{i.description}\nPosted by: <@{i.customer_id}>", inline=False)
-        embed.set_footer(text=f"Page {self.page + 1}/{ceil(len(self.bounties) / self.size)}")
+            desc = f"**Bounty #{i.bounty_id}** — {i.prize} coins\n{i.description}\nPosted by <@{i.customer_id}>\n\n"
+        embed = Embed(title="Open Bounties:", description=desc.strip(), color=Color.random())
+        embed.set_footer(text=f"Page {self.page + 1}/{ceil(len(self.bounties)) / self.size}")
         return embed
+
+
+    def update_buttons(self):
+        self.clear_items()
+        chunk = self.get_chunk()
+        for i in chunk:
+            button = ui.Button(label="Claim", style=ButtonStyle.green)
+            button.callback = self.callback(i.bounty_id)
+            self.add_item(button)
+        prev = ui.Button(label="Previous", style=ButtonStyle.gray)
+        prev.callback = self.previous
+        self.add_item(prev)
+        nxt = ui.Button(label="Next", style=ButtonStyle.gray)
+        nxt.callback = self.next
+        self.add_item(nxt)
+
+
+    def callback(self, bounty_id: int):
+        async def claim(interaction: Interaction):
+            session = get_session()
+            try:
+                citizen = citizenship(session, interaction.user.id)
+                if not citizen.current_job_id:
+                    await interaction.response.send_message("You nust be employed to use this command.", ephemeral=True)
+                    return
+                bounty = session.get(Bounty, bounty_id)
+                if bounty.status != "open":
+                    await interaction.response.send_message("This bounty is no longer available", ephemeral=True)
+                    return
+                if bounty.customer_id == interaction.user.id:
+                    await interaction.response.send_message("I see what you're trying to do :eyes:", ephemeral=True)
+                    return
+                category = utils.get(interaction.guild.categories, name="Bounties")
+                if not category:
+                    category = await interaction.guild.create_category("Bounties")
+                channel = await interaction.guild.create_text_channel(f"bounty-{bounty_id}")
+                await channel.set_permissions(interaction.guild.default_role, view_channel=False)
+                await channel.set_permissions(interaction.user, view_channel=True)
+                await channel.set_permissions(interaction.guild.get_member(bounty.customer_id), view_channel=True)
+                bounty.employee_id = interaction.user.id
+                bounty.channel_id = channel.id
+                bounty.status = "taken"
+                bounty.claimed_at = utcnow()
+                session.commit()
+                await interaction.response.send_message(f"Bounty claimed! Visit <#{channel.id}>", ephemeral=True)
+                self.stop()
+            finally:
+                session.close()
+        return claim
 
 
     async def interaction_check(self, interaction: Interaction):
@@ -110,16 +166,16 @@ class Pages(ui.View):
         return True
 
     
-    @ui.button(label="Previous", style=ButtonStyle.gray)
     async def previous(self, interaction: Interaction, button: ui.Button):
         self.page = max(0, self.page - 1)
-        await interaction.response.edit_message(embed=self.get_embed())
+        self.update_buttons()
+        await interaction.response.edit_message(embed=self.get_embed(), view=self)
 
 
-    @ui.button(label="Next", style=ButtonStyle.gray)
     async def next(self, interaction: Interaction, button: ui.Button):
         self.page = min(ceil(len(self.bounties) / self.size) - 1, self.page + 1)
-        await interaction.response.edit_message(embed=self.get_embed())
+        self.update_buttons()
+        await interaction.response.edit_message(embed=self.get_embed(), view=self)
 
 
 class NegotiateView(ui.View):
@@ -407,42 +463,8 @@ class Employment(commands.Cog):
             if not bounty:
                 await interaction.response.send_message("No bounties for now.", ephemeral=True)
                 return
-            view = Pages(bounty, interaction.user)
+            view = Pages(bounty, interaction.user, cog=self)
             await interaction.response.send_message(embed=view.get_embed(), view=view)
-        finally:
-            session.close()
-
-
-    @app_commands.command(name="claim", description="Claim a bounty.")
-    @app_commands.describe(id="The ID of the bounty to be claimed.")
-    async def claim(self, interaction: Interaction, id: int):
-        session = get_session()
-        try:
-            citizen = citizenship(session, interaction.user.id)
-            if not citizen.current_job_id:
-                await interaction.response.send_message("You must be employed to use this command.", ephemeral=True)
-                return
-            bounty = session.query(Bounty).filter_by(bounty_id=id).first()
-            if not bounty:
-                await interaction.response.send_message("No such bounty found.", ephemeral=True)
-                return
-            if bounty.status != "open":
-                await interaction.response.send_message("The bounty is either taken, completed or in dispute", ephemeral=True)
-                return
-            if bounty.customer_id == interaction.user.id:
-                await interaction.response.send_message("I see what you're trying to do :eyes:", ephemeral=True)
-                return
-            category = utils.get(interaction.guild.categories, name="Bounties")
-            channel = await interaction.guild.create_text_channel(name=f"bounty-{id}", category=category)
-            await channel.set_permissions(interaction.guild.default_role, view_channel=False)
-            await channel.set_permissions(interaction.user, view_channel=True)
-            await channel.set_permissions(interaction.guild.get_member(bounty.customer_id), view_channel=True)
-            bounty.employee_id = interaction.user.id
-            bounty.channel_id = channel.id
-            bounty.status = "taken"
-            bounty.claimed_at = utcnow()
-            session.commit()
-            await interaction.response.send_message(f"Your Bounty ID is: {bounty.bounty_id}. Visit <#{channel.id}> to discuss further with your client.")
         finally:
             session.close()
 
