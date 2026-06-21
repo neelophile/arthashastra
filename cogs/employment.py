@@ -166,13 +166,13 @@ class Pages(ui.View):
         return True
 
     
-    async def previous(self, interaction: Interaction, button: ui.Button):
+    async def previous(self, interaction: Interaction, button: ui.Button = None):
         self.page = max(0, self.page - 1)
         self.update_buttons()
         await interaction.response.edit_message(embed=self.get_embed(), view=self)
 
 
-    async def next(self, interaction: Interaction, button: ui.Button):
+    async def next(self, interaction: Interaction, button: ui.Button = None):
         self.page = min(ceil(len(self.bounties) / self.size) - 1, self.page + 1)
         self.update_buttons()
         await interaction.response.edit_message(embed=self.get_embed(), view=self)
