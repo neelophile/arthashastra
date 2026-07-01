@@ -104,9 +104,10 @@ class Pages(ui.View):
         chunk = self.get_chunk()
         desc = ""
         for i in chunk:
-            desc = f"**Bounty #{i.bounty_id}** — {i.prize} coins\n{i.description}\nPosted by <@{i.customer_id}>\n\n"
+            desc += f"**Bounty #{i.bounty_id}** — {i.prize} coins\n{i.description}\nPosted by <@{i.customer_id}>\n\n"
         embed = Embed(title="Open Bounties:", description=desc.strip(), color=Color.random())
-        embed.set_footer(text=f"Page {self.page + 1}/{ceil(len(self.bounties)) / self.size}")
+        total_pages = ceil(len(self.bounties) / self.size) or 1
+        embed.set_footer(text=f"Page {self.page + 1}/{total_pages}")
         return embed
 
 
@@ -152,8 +153,16 @@ class Pages(ui.View):
                 bounty.status = "taken"
                 bounty.claimed_at = utcnow()
                 session.commit()
-                await interaction.response.send_message(f"Bounty claimed! Visit <#{channel.id}>", ephemeral=True)
-                self.stop()
+                self.bounties = [i for i in self.bounties if i.bounty_id != bounty_id]
+                if not self.bounties:
+                    self.clear_items()
+                    await interaction.response.edit_message(content="No more open bounties.", embed=None, view=self)
+                else:
+                    total_pages = ceil(len(self.bounties) / self.size) or 1
+                    self.page = min(self.page, total_pages - 1)
+                    self.update_buttons()
+                    await interaction.response.edit_message(embed=self.get_embed(), view=self)
+                await interaction.followup.send(f"Bounty claimed! Visit <#{channel.id}>", ephemeral=True)
             finally:
                 session.close()
         return claim
