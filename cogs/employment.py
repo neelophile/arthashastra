@@ -88,7 +88,7 @@ class Pages(ui.View):
     def __init__(self, bounties, author, cog):
         super().__init__()
         self.bounties = bounties
-        self.size = 5
+        self.size = 4
         self.author = author
         self.page = 0
         self.cog = cog
@@ -104,8 +104,8 @@ class Pages(ui.View):
         chunk = self.get_chunk()
         desc = ""
         for i in chunk:
-            desc += f"**Bounty #{i.bounty_id}** — {i.prize} coins\n{i.description}\nPosted by <@{i.customer_id}>\n\n"
-        embed = Embed(title="Open Bounties:", description=desc.strip(), color=Color.random())
+            desc += f"**Bounty #{i.bounty_id}** — {i.prize} coins\n{i.description}\nPosted by <@{i.customer_id}>\n───────────\n"
+        embed = Embed(title="Open Bounties:", description=desc.strip("─ \n"), color=Color.random())
         total_pages = ceil(len(self.bounties) / self.size) or 1
         embed.set_footer(text=f"Page {self.page + 1}/{total_pages}")
         return embed
@@ -114,14 +114,15 @@ class Pages(ui.View):
     def update_buttons(self):
         self.clear_items()
         chunk = self.get_chunk()
-        for i in chunk:
-            button = ui.Button(label="Claim", style=ButtonStyle.green)
+        for row, i in enumerate(chunk):
+            button = ui.Button(label=f"Claim #{i.bounty_id}", style=ButtonStyle.green, row=row)
             button.callback = self.callback(i.bounty_id)
             self.add_item(button)
-        prev = ui.Button(label="Previous", style=ButtonStyle.gray)
+        nav_row = len(chunk)
+        prev = ui.Button(label="Previous", style=ButtonStyle.gray, row=nav_row)
         prev.callback = self.previous
         self.add_item(prev)
-        nxt = ui.Button(label="Next", style=ButtonStyle.gray)
+        nxt = ui.Button(label="Next", style=ButtonStyle.gray, row=nav_row)
         nxt.callback = self.next
         self.add_item(nxt)
 
@@ -144,7 +145,7 @@ class Pages(ui.View):
                 category = utils.get(interaction.guild.categories, name="Bounties")
                 if not category:
                     category = await interaction.guild.create_category("Bounties")
-                channel = await interaction.guild.create_text_channel(f"bounty-{bounty_id}")
+                channel = await interaction.guild.create_text_channel(f"bounty-{bounty_id}", category=category)
                 await channel.set_permissions(interaction.guild.default_role, view_channel=False)
                 await channel.set_permissions(interaction.user, view_channel=True)
                 await channel.set_permissions(interaction.guild.get_member(bounty.customer_id), view_channel=True)
