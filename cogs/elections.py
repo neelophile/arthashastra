@@ -9,8 +9,8 @@ from typing import Optional
 
 cec = "Chief Election Commissioner"
 president = "President"
-level_25 = "Citizen (Level 25 - 30)"
-level_35 = "Citizen (Level 35 - 40)"
+level_25 = "Citizen (Lv 25 - 30)"
+level_35 = "Citizen (Lv 35 - 40)"
 
 
 def is_cec(interaction: Interaction):
