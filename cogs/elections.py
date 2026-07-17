@@ -9,6 +9,7 @@ from typing import Optional
 
 cec = "Chief Election Commissioner"
 president = "President"
+level_5 = "Citizen (Lv 5 - 10)"
 level_25 = "Citizen (Lv 25 - 30)"
 level_35 = "Citizen (Lv 35 - 40)"
 
@@ -232,6 +233,9 @@ class Elections(commands.Cog):
     @election_group.command(name="vote", description="Open the voting panel.")
     @app_commands.describe(election_id="ID of the election.")
     async def vote(self, interaction: Interaction, election_id: int):
+        if not has_role(interaction, level_5):
+            await interaction.response.send_message("You aren't eligible to vote.", ephemeral=True)
+            return
         session = get_session()
         try:
             election = session.get(Election, election_id)
