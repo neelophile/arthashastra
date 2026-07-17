@@ -3,7 +3,7 @@ from discord.ext import commands, tasks
 from datetime import datetime, timezone
 from db.database import get_session
 from db.models import utcnow, Election, Candidate, Party, PartyMember, Vote, Citizen
-from cogs.employement import has_role, has_roles, citizenship
+from cogs.employment import has_role, has_roles, citizenship
 from typing import Optional
 
 
