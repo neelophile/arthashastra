@@ -187,3 +187,10 @@ class Loan(Base):
     penalised = Column(Boolean, default=False)
     taken_at = Column(DateTime, default=utcnow)
 
+
+class FeedbackRequests(Base):
+    __tablename__ = 'feedback_requests'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, nullable=False)
+    requested_at = Column(DateTime, default=utcnow)
+
