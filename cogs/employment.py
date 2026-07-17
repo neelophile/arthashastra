@@ -84,15 +84,16 @@ class BountyModal(ui.Modal, title="Issue a bounty."):
             session.close()
 
 
-class Pages(ui.View):
-    def __init__(self, bounties, author, cog):
-        super().__init__()
+class Pages(ui.LayoutView):
+    def __init__(self, author, bounties):
+        super().__init__(timeout=180)
+        self.author = author
         self.bounties = bounties
         self.size = 4
-        self.author = author
         self.page = 0
-        self.cog = cog
-        self.update_buttons()
+        self.container = ui.Container(accent_color=Color.blurple())
+        self.add_item(self.container)
+        self.build()
 
 
     def get_chunk(self):
@@ -100,31 +101,29 @@ class Pages(ui.View):
         return self.bounties[start:start + self.size]
 
 
-    def get_embed(self):
+    def build(self):
+        self.container.clear_items()
         chunk = self.get_chunk()
-        desc = ""
-        for i in chunk:
-            desc += f"**Bounty #{i.bounty_id}** — {i.prize} coins\n{i.description}\nPosted by <@{i.customer_id}>\n───────────\n"
-        embed = Embed(title="Open Bounties:", description=desc.strip("─ \n"), color=Color.random())
+        self.container.add_item(ui.TextDisplay("## Open Bounties"))
+        for i, j in enumerate(chunk):
+            claim_btn = ui.Button(label=f"Claim #{j.bounty_id}", style=ButtonStyle.green)
+            claim_btn.callback = self.callback(j.bounty_id)
+            text = f"**Bounty #{j.bounty_id}** — {j.prize} coins\n{j.description}\nPosted by <@{j.customer_id}>"
+            section = ui.Section(ui.TextDisplay(text), accessory=claim_btn)
+            self.container.add_item(section)
+            if i < len(chunk) - 1:
+                self.container.add_item(ui.Separator())
         total_pages = ceil(len(self.bounties) / self.size) or 1
-        embed.set_footer(text=f"Page {self.page + 1}/{total_pages}")
-        return embed
-
-
-    def update_buttons(self):
-        self.clear_items()
-        chunk = self.get_chunk()
-        for row, i in enumerate(chunk):
-            button = ui.Button(label=f"Claim #{i.bounty_id}", style=ButtonStyle.green, row=row)
-            button.callback = self.callback(i.bounty_id)
-            self.add_item(button)
-        nav_row = len(chunk)
-        prev = ui.Button(label="Previous", style=ButtonStyle.gray, row=nav_row)
+        self.container.add_item(ui.Separator())
+        self.container.add_item(ui.TextDisplay(f"Page {self.page + 1}/{total_pages}"))
+        nav = ui.ActionRow()
+        prev = ui.Button(label="Previous", style=ButtonStyle.gray)
         prev.callback = self.previous
-        self.add_item(prev)
-        nxt = ui.Button(label="Next", style=ButtonStyle.gray, row=nav_row)
+        nxt = ui.Button(label="Next", style=ButtonStyle.gray)
         nxt.callback = self.next
-        self.add_item(nxt)
+        nav.add_item(prev)
+        nav.add_item(nxt)
+        self.container.add_item(nav)
 
 
     def callback(self, bounty_id: int):
@@ -156,13 +155,14 @@ class Pages(ui.View):
                 session.commit()
                 self.bounties = [i for i in self.bounties if i.bounty_id != bounty_id]
                 if not self.bounties:
-                    self.clear_items()
-                    await interaction.response.edit_message(content="No more open bounties.", embed=None, view=self)
+                    self.container.clear_items()
+                    self.container.add_item(ui.TextDisplay("No more open bounties left."))
+                    await interaction.response.edit_message(view=self)
                 else:
                     total_pages = ceil(len(self.bounties) / self.size) or 1
                     self.page = min(self.page, total_pages - 1)
-                    self.update_buttons()
-                    await interaction.response.edit_message(embed=self.get_embed(), view=self)
+                    self.build()
+                    await interaction.response.edit_message(view=self)
                 await interaction.followup.send(f"Bounty claimed! Visit <#{channel.id}>", ephemeral=True)
             finally:
                 session.close()
@@ -178,14 +178,14 @@ class Pages(ui.View):
     
     async def previous(self, interaction: Interaction, button: ui.Button = None):
         self.page = max(0, self.page - 1)
-        self.update_buttons()
-        await interaction.response.edit_message(embed=self.get_embed(), view=self)
+        self.build()
+        await interaction.response.edit_message(view=self)
 
 
     async def next(self, interaction: Interaction, button: ui.Button = None):
         self.page = min(ceil(len(self.bounties) / self.size) - 1, self.page + 1)
-        self.update_buttons()
-        await interaction.response.edit_message(embed=self.get_embed(), view=self)
+        self.build()
+        await interaction.response.edit_message(view=self)
 
 
 class NegotiateView(ui.View):
@@ -473,8 +473,8 @@ class Employment(commands.Cog):
             if not bounty:
                 await interaction.response.send_message("No bounties for now.", ephemeral=True)
                 return
-            view = Pages(bounty, interaction.user, cog=self)
-            await interaction.response.send_message(embed=view.get_embed(), view=view)
+            view = Pages(interaction.user, bounty)
+            await interaction.response.send_message(view=view)
         finally:
             session.close()
 

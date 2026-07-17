@@ -120,8 +120,9 @@ class Config(Base):
 class Election(Base):
     __tablename__ = 'elections'
     election_id = Column(Integer, primary_key=True, autoincrement=True)
-    type = Column(Enum("cabinet", "club"), nullable=False)
-    status = Column(Enum("ongoing", "closed"), default="ongoing")
+    type = Column(Enum("cabinet", "club", "byelection"), nullable=False)
+    seats = Column(Integer, default=1)
+    status = Column(Enum("registration", "ongoing", "closed"), default="registration")
     end_date = Column(DateTime, nullable=False)
     created_by = Column(BigInteger, nullable=False)
 
@@ -132,6 +133,7 @@ class Candidate(Base):
     election_id = Column(Integer, ForeignKey("elections.election_id"), nullable=False)
     user_id = Column(BigInteger, ForeignKey("citizens.user_id"), nullable=False)
     party_id = Column(Integer, ForeignKey("parties.party_id"))
+    is_party = Column(Boolean, default=False)
 
 
 class Party(Base):
