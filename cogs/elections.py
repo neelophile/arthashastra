@@ -1,6 +1,6 @@
 from discord import app_commands, Interaction, utils, ui, Embed, Color, ButtonStyle, Member
 from discord.ext import commands, tasks
-from datetime import datetime, timezone, strptime
+from datetime import datetime, timezone
 from db.database import get_session
 from db.models import utcnow, Election, Candidate, Party, PartyMember, Vote, Citizen
 from cogs.employement import has_role, has_roles, citizenship
@@ -144,7 +144,7 @@ class Elections(commands.Cog):
             await interaction.response.send_message("Only CEC or the President can create elections.", ephemeral=True)
             return
         try:
-            date = strptime(end_date, "%d-%m-%Y").replace(tzinfo=timezone.utc)
+            date = datetime.strptime(end_date, "%d-%m-%Y").replace(tzinfo=timezone.utc)
         except ValueError:
             await interaction.response.send_message("Invalid date format, use DD-MM-YYYY.", ephemeral=True)
             return
