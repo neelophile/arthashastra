@@ -36,7 +36,7 @@ class VoteButton(ui.Button):
         try:
             existing = session.query(Vote).filter_by(election_id=self.election_id, voter_id=interaction.user.id).first()
             if existing:
-                exisiting.candidate_id = self.candidate_obj.candidate_id
+                existing.candidate_id = self.candidate_obj.candidate_id
                 session.commit()
                 await interaction.response.send_message("Your vote has been updated.", ephemeral=True)
             else:
@@ -133,7 +133,7 @@ class Elections(commands.Cog):
         await channel.send(embed=embed)
 
 
-    election_group = app_commands.Group(mame="election", description="Election-related commands.")
+    election_group = app_commands.Group(name="election", description="Election-related commands.")
 
 
     @election_group.command(name="create", description="Create and start an election.")
@@ -202,7 +202,7 @@ class Elections(commands.Cog):
             session.close()
 
     
-    @election_group.command(name="candidatws", description="List all candidates for an election.")
+    @election_group.command(name="candidates", description="List all candidates for an election.")
     @app_commands.describe(election_id="ID of the election.")
     async def candidates(self, interaction: Interaction, election_id: int):
         session = get_session()
@@ -218,7 +218,7 @@ class Elections(commands.Cog):
             embed = Embed(title=f"Candidates — {election.type.capitalize()} Election", color=Color.blue())
             for i in candidates:
                 if i.is_party:
-                    party = session.get(Party, c.party_id)
+                    party = session.get(Party, i.party_id)
                     name = party.name if party else f"Party {i.party_id}"
                 else:
                     member = interaction.guild.get_member(i.user_id)
@@ -251,7 +251,7 @@ class Elections(commands.Cog):
                     member = interaction.guild.get_member(i.user_id)
                     label = member.display_name if member else str(i.user_id)
                 buttons.append((i, label))
-            view = VoteView(election_id=election_id, candidate=buttons)
+            view = VoteView(election_id=election_id, candidates=buttons)
             embed = Embed(title="Cast Your Vote", description="Click a button to vote. You can change your vote anytime before the election ends.", color=Color.green())
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         finally:
@@ -334,7 +334,7 @@ class Elections(commands.Cog):
     @party_group.command(name="create", description="Create a party.")
     @app_commands.describe(name="Name of your party.")
     async def create(self, interaction: Interaction, name: str):
-        if not has_role(interaction, LEVEL_30):
+        if not has_role(interaction, level_30):
             await interaction.response.send_message("You need to be Level 30 to form a party.", ephemeral=True)
             return
         session = get_session()
