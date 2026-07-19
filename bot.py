@@ -16,15 +16,15 @@ cogs = ['cogs.employment', 'cogs.config', 'cogs.bank', 'cogs.elections']
 
 
 async def setup_hook():
+    init_db()
     for i in cogs:
         await bot.load_extension(i)
+    bot.tree.copy_global_to(guild=guild)
+    await bot.tree.sync(guild=guild)
 
 
 @bot.event
 async def on_ready():
-    init_db()
-    bot.tree.copy_global_to(guild=guild)
-    await bot.tree.sync(guild=guild)
     print(f"Logged in as {bot.user}.")
 
 
@@ -48,8 +48,8 @@ async def on_member_remove(member):
             session.commit()
         finally:
             session.close()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Failed to DM {member.display_name} : {e}")
 
 
 @bot.event
@@ -62,6 +62,7 @@ async def on_message(message):
     try:
         request = session.query(FeedbackRequest).filter_by(user_id=message.author.id).first()
         if not request:
+            await bot.process_commands(message)
             return
         guild = bot.guilds[0]
         channel = utils.get(guild.text_channels, name="immigration-office")
@@ -75,7 +76,6 @@ async def on_message(message):
         await message.reply("Thank you for your feedback! It has been forwarded to the team.")
     finally:
         session.close()
-    await bot.process_commands(message)
 
 
 bot.setup_hook = setup_hook
