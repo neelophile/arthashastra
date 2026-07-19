@@ -99,6 +99,7 @@ class Banking(commands.Cog):
                 session.add(deposited)
             bank_obj.balance += amount
             deposited.amount += amount
+            deposited.deposited_at = datetime.now(timezone.utc)
             session.commit()
             await interaction.response.send_message(f"Transfer successful. You have transfered {amount} coins in the bank.")
         finally:
@@ -118,7 +119,7 @@ class Banking(commands.Cog):
                 await interaction.response.send_message("You are trying to withdraw more than you deposited", ephemeral=True)
                 return
             days = (datetime.now(timezone.utc) - deposited.deposited_at.replace(tzinfo=timezone.utc)).days
-            interest = int(amount * deposit_interest_rate(session) * max(days, 1))
+            interest = int(amount * deposit_interest_rate(session) * days)
             added = amount + interest
             wallet.balance += added
             deposited.amount -= amount
