@@ -6,7 +6,7 @@ from cogs.employment import has_roles, has_role
 from datetime import datetime, timezone, timedelta
 
 
-sir_channel = "report"
+sir_channel = "s-i-r"
 cec = "Chief Election Commisioner"
 president = "President"
 
@@ -71,9 +71,10 @@ class SIR(commands.Cog):
                     continue
                 account_age = (now - i.created_at.replace(tzinfo=timezone.utc)).days
                 if account_age < 30:
-                    existing = session.query(SIRRecord).filter_by(user_id=i.user_id).filter(SIRRecord.status.notin_(["purged", "cleared"])).first()
+                    existing = session.query(SIRRecord).filter_by(user_id=i.id).filter(SIRRecord.status.notin_(["purged", "cleared"])).first()
                     if not existing:
                         session.add(SIRRecord(user_id=i.user_id, reason=f"Account is {account_age} days old."))
+                        flagged.append((i.id, f"Account is {account_age} days old"))
             session.commit()
             channel = utils.get(guild.text_channels, name=sir_channel)
             if not channel:
