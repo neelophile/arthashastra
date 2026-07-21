@@ -36,7 +36,7 @@ async def on_ready():
 async def on_app_command_completion(interaction: Interaction, command):
     tip = choice(tips)
     try:
-        await interaction.followup.send(f"💡 **Did you know?** {tip}", ephemeral=True)
+        await interaction.followup.send(f"💡 **Did you know?** {tip}")
     except Exception:
         pass
 
