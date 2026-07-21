@@ -14,7 +14,7 @@ intents = Intents.default()
 intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix='.', intents=intents)
-cogs = ['cogs.employment', 'cogs.config', 'cogs.bank', 'cogs.elections']
+cogs = ['cogs.employment', 'cogs.config', 'cogs.bank', 'cogs.elections', 'cogs.sir']
 with open("tips.json") as f:
     tips = load(f)
 
@@ -39,6 +39,25 @@ async def on_app_command_completion(interaction: Interaction, command):
         await interaction.followup.send(f"💡 **Did you know?** {tip}")
     except Exception:
         pass
+
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+    if message.channel.name == "report":
+        session = get_session()
+        try:
+            record = session.query(SIRRecord).filter_by(user_id=message.author.id, status="pinged").first()
+            if record:
+                record.status = "responded"
+                session.commit()
+                await message.add_reaction("✅")
+        finally:
+            session.close()
+    if not isinstance(message.channel, DMChannel):
+        return
+    await bot.process_commands(message)
 
 
 @bot.tree.command(name="hello", description="Replies back.")

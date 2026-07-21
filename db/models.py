@@ -187,3 +187,12 @@ class Loan(Base):
     penalised = Column(Boolean, default=False)
     taken_at = Column(DateTime, default=utcnow)
 
+
+class SIRRecord(Base):
+    __tablename__ = 'sir_records'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, nullable=False)
+    flagged_at = Column(DateTime, default=utcnow)
+    pinged_at = Column(DateTime)
+    status = Column(Enum("flagged", "pinged", "responded", "cleared", "purged", "no_response"), default="flagged")
+    reason = Column(String(100))
