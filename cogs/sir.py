@@ -17,7 +17,7 @@ def is_cec(interaction: Interaction):
 
 class SIR(commands.Cog):
     def __init__(self, bot):
-        self.bot = cog
+        self.bot = bot
         self.check_responses.start()
 
 
@@ -48,8 +48,7 @@ class SIR(commands.Cog):
 
 
     @sir_group.command(name="start", description="Initiate a Server Integrity Review.")
-    @app_commands.describe(days="Flag citizens inactive after more than X amount of days.")
-    async def sir_start(self, interaction: Interaction, days: int = 30):
+    async def sir_start(self, interaction: Interaction):
         if not is_cec(interaction):
             await interaction.response.send_message("Only CEC and President can use this command. (Default = 30)", ephemeral=True)
             return
@@ -58,7 +57,6 @@ class SIR(commands.Cog):
         session = get_session()
         try:
             now = utcnow()
-            cutoff = now - timedelta(days=days)
             flagged = []
             citizens = session.query(Citizen).all()
             for i in citizens:
@@ -97,7 +95,7 @@ class SIR(commands.Cog):
 
 
     @sir_group.command(name="ping", description="Ping flagged members to respond.")
-    async def sir_ping(interaction: Interaction):
+    async def sir_ping(self, interaction: Interaction):
         if not is_cec(interaction):
             await interaction.response.send_message("Only CEC or President can use this.", ephemeral=True)
             return
@@ -208,7 +206,7 @@ class SIR(commands.Cog):
             if not records:
                 await interaction.response.send_message("No SIR records found.", ephemeral=True)
                 return
-            channel = utils.get(interaction.guild.text_channels, name=SIR_CHANNEL)
+            channel = utils.get(interaction.guild.text_channels, name=sir_channel)
             embed = Embed(title="📋 Full SIR Report", color=Color.red())
             for i in records[:25]:
                 embed.add_field(name=f"<@{i.user_id}>", value=f"Reason: {i.reason} | Status: **{i.status}** | Flagged: <t:{int(i.flagged_at.timestamp())}:D>", inline=False)
