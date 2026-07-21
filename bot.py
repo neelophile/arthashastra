@@ -33,7 +33,7 @@ async def on_ready():
 
 
 @bot.tree.after_invoke
-async def after_invoke(interaction: Interaction):
+async def on_app_command_completion(interaction: Interaction):
     tip = choice(tips)
     try:
         await interaction.followup.send(f"💡 **Did you know?** {tip}", ephemeral=True)
