@@ -128,6 +128,10 @@ class Pages(ui.LayoutView):
 
     def callback(self, bounty_id: int):
         async def claim(interaction: Interaction):
+            prisoner = utils.get(interaction.guild.roles, name="Imprisoned")
+            if prisoner_role and prisoner_role in interaction.user.roles:
+                await interaction.response.send_message("Imprisoned citizens cannot claim bouties.", ephemeral=True)
+                return
             session = get_session()
             try:
                 citizen = citizenship(session, interaction.user.id)
