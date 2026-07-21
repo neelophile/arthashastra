@@ -73,7 +73,7 @@ class SIR(commands.Cog):
                 if account_age < 30:
                     existing = session.query(SIRRecord).filter_by(user_id=i.id).filter(SIRRecord.status.notin_(["purged", "cleared"])).first()
                     if not existing:
-                        session.add(SIRRecord(user_id=i.user_id, reason=f"Account is {account_age} days old."))
+                        session.add(SIRRecord(user_id=i.id, reason=f"Account is {account_age} days old."))
                         flagged.append((i.id, f"Account is {account_age} days old"))
             session.commit()
             channel = utils.get(guild.text_channels, name=sir_channel)
