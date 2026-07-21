@@ -32,7 +32,7 @@ async def on_ready():
     print(f"Logged in as {bot.user}.")
 
 
-@bot.tree.after_invoke
+@bot.event
 async def on_app_command_completion(interaction: Interaction):
     tip = choice(tips)
     try:
