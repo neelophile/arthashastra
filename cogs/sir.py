@@ -16,12 +16,12 @@ def is_cec(interaction: Interaction):
 
 
 class SIR(commands.Cog):
-    def __init__(self, cog):
-        self.cog = cog
+    def __init__(self, bot):
+        self.bot = cog
         self.check_responses.start()
 
 
-    def unload_cog(self):
+    def cog_unload(self):
         self.check_responses.cancel()
 
 
@@ -64,7 +64,7 @@ class SIR(commands.Cog):
             for i in citizens:
                 member = guild.get_member(i.user_id)
                 if not member:
-                    existing = session.query(SIRRecord).filter_by(user_id=member.id).filter(SIRRecord.status.notin_(["purged", "cleared"])).first()
+                    existing = session.query(SIRRecord).filter_by(user_id=i.user_id).filter(SIRRecord.status.notin_(["purged", "cleared"])).first()
                     if not existing:
                         session.add(SIRRecord(user_id=i.user_id, reason="Left the server."))
                         flagged.append((i.user_id, "Left the server"))
@@ -73,13 +73,13 @@ class SIR(commands.Cog):
                     continue
                 account_age = (now - i.created_at.replace(tzinfo=timezone.utc)).days
                 if account_age < 30:
-                    existing = session.query(SIRRecord).filter_by(user_id=member.id).filter(SIRRecord.status.notin_(["purged", "cleared"])).first()
+                    existing = session.query(SIRRecord).filter_by(user_id=i.user_id).filter(SIRRecord.status.notin_(["purged", "cleared"])).first()
                     if not existing:
-                        session.add(SIRRecord(user_id=member.id, reason=f"Account is {account_age} days old."))
+                        session.add(SIRRecord(user_id=i.user_id, reason=f"Account is {account_age} days old."))
             session.commit()
             channel = utils.get(guild.text_channels, name=sir_channel)
             if not channel:
-                await interaction.followup.send"SIR Channel not found.", ephemeral=True)
+                await interaction.followup.send("SIR Channel not found.", ephemeral=True)
                 return
             if not flagged:
                 await interaction.followup.send("No accounts flagged.", ephemeral=True)
