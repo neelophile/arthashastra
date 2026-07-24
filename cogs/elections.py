@@ -338,7 +338,7 @@ class Elections(commands.Cog):
     @party_group.command(name="create", description="Create a party.")
     @app_commands.describe(name="Name of your party.")
     async def create(self, interaction: Interaction, name: str):
-        if not has_role(interaction, level_30):
+        if not has_role(interaction, level_35):
             await interaction.response.send_message("You need to be Level 30 to form a party.", ephemeral=True)
             return
         session = get_session()

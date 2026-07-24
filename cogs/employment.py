@@ -105,14 +105,20 @@ class Pages(ui.LayoutView):
         self.container.clear_items()
         chunk = self.get_chunk()
         self.container.add_item(ui.TextDisplay("## Open Bounties"))
-        for i, j in enumerate(chunk):
-            claim_btn = ui.Button(label=f"Claim #{j.bounty_id}", style=ButtonStyle.green)
-            claim_btn.callback = self.callback(j.bounty_id)
-            text = f"**Bounty #{j.bounty_id}** — {j.prize} coins\n{j.description}\nPosted by <@{j.customer_id}>"
-            section = ui.Section(ui.TextDisplay(text), accessory=claim_btn)
-            self.container.add_item(section)
-            if i < len(chunk) - 1:
-                self.container.add_item(ui.Separator())
+        session = get_session()
+        try:
+            for i, j in enumerate(chunk):
+                job = session.query(Job).filter_by(job_id=j.job_id).first()
+                job_name = job.title if job else "Unknown"
+                claim_btn = ui.Button(label=f"Claim #{j.bounty_id}", style=ButtonStyle.green)
+                claim_btn.callback = self.callback(j.bounty_id)
+                text = f"**Bounty #{j.bounty_id}** — {j.prize} coins | **{job_name}**\n{j.description}\nPosted by <@{j.customer_id}>"
+                section = ui.Section(ui.TextDisplay(text), accessory=claim_btn)
+                self.container.add_item(section)
+                if i < len(chunk) - 1:
+                    self.container.add_item(ui.Separator())
+        finally:
+            session.close()
         total_pages = ceil(len(self.bounties) / self.size) or 1
         self.container.add_item(ui.Separator())
         self.container.add_item(ui.TextDisplay(f"Page {self.page + 1}/{total_pages}"))
@@ -129,14 +135,14 @@ class Pages(ui.LayoutView):
     def callback(self, bounty_id: int):
         async def claim(interaction: Interaction):
             prisoner = utils.get(interaction.guild.roles, name="Imprisoned")
-            if prisoner_role and prisoner_role in interaction.user.roles:
+            if prisoner and prisoner in interaction.user.roles:
                 await interaction.response.send_message("Imprisoned citizens cannot claim bouties.", ephemeral=True)
                 return
             session = get_session()
             try:
                 citizen = citizenship(session, interaction.user.id)
                 if not citizen.current_job_id:
-                    await interaction.response.send_message("You nust be employed to use this command.", ephemeral=True)
+                    await interaction.response.send_message("You must be employed to use this command.", ephemeral=True)
                     return
                 bounty = session.get(Bounty, bounty_id)
                 if bounty.status != "open":
@@ -144,6 +150,9 @@ class Pages(ui.LayoutView):
                     return
                 if bounty.customer_id == interaction.user.id:
                     await interaction.response.send_message("I see what you're trying to do :eyes:", ephemeral=True)
+                    return
+                if bounty.job_id != citizen.current_job_id:
+                    await interaction.response.send_message("This bounty is not for you.", ephemeral=True)
                     return
                 category = utils.get(interaction.guild.categories, name="Bounties")
                 if not category:
@@ -322,6 +331,7 @@ class Employment(commands.Cog):
     @tasks.loop(minutes=10)
     async def check_bounties(self):
         session = get_session()
+        guild = self.bot.guilds[0]
         try:
             now = utcnow()
             taken = session.query(Bounty).filter_by(status='taken').all()
@@ -330,6 +340,13 @@ class Employment(commands.Cog):
                     claimed = i.claimed_at.replace(tzinfo=timezone.utc) if i.claimed_at.tzinfo is None else i.claimed_at
                     if now >= claimed + timedelta(hours=48):
                         await self.payment(i, session)
+            completed = session.query(Bounty).filter(Bounty.delete_after != None, Bounty.delete_after <= now).all()
+            for i in completed:
+                channel = guild.get_channel(i.channel_id)
+                if channel:
+                    await channel.delete()
+                i.delete_after = None
+            session.commit()
         finally:
             session.close()
 
@@ -382,8 +399,7 @@ class Employment(commands.Cog):
         channel = guild.get_channel(bounty.channel_id)
         if channel:
             await channel.send(f"Bounty auto-completed. Net coins **{net}** coins paid to employee, **{tax}** coins taxed.")
-            sleep(3600*24)
-            await channel.delete()
+            bounty.delete_after = utcnow() + timedelta(hours=24)
     
 
     @app_commands.command(name="employ", description="Get a job.")
@@ -473,9 +489,9 @@ class Employment(commands.Cog):
             if not citizen.current_job_id:
                 await interaction.response.send_message("You must be employed to use this command.", ephemeral=True)
                 return
-            bounty = session.query(Bounty).filter_by(job_id=citizen.current_job_id, status="open").all()
+            bounty = session.query(Bounty).filter_by(status="open").all()
             if not bounty:
-                await interaction.response.send_message("No bounties for now.", ephemeral=True)
+                await interaction.response.send_message("No bounties available.", ephemeral=True)
                 return
             view = Pages(interaction.user, bounty)
             await interaction.response.send_message(view=view)

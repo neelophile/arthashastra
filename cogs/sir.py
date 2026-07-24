@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 
 
 sir_channel = "s-i-r"
-cec = "Chief Election Commisioner"
+cec = "Chief Election Commissioner"
 president = "President"
 
 
@@ -66,6 +66,16 @@ class SIR(commands.Cog):
                     if not existing:
                         session.add(SIRRecord(user_id=i.user_id, reason="Left the server."))
                         flagged.append((i.user_id, "Left the server"))
+            for i in citizens:
+                member = guild.get_member(i.user_id)
+                if not member:
+                    continue
+                if i.last_active is None or (now - i.last_active.replace(tzinfo=timezone.utc)).days > 30:
+                    existing = session.query(SIRRecord).filter_by(user_id=i.user_id).filter(SIRRecord.status.notin_(["purged", "cleared"])).first()
+                    if not existing:
+                        days_inactive = "Never active" if not i.last_active else f"Inactive for {(now - i.last_active.replace(tzinfo=timezone.utc)).days} days"
+                        session.add(SIRRecord(user_id=i.user_id, reason=days_inactive))
+                        flagged.append((i.user_id, days_inactive))
             for i in guild.members:
                 if i.bot:
                     continue
@@ -152,6 +162,7 @@ class SIR(commands.Cog):
             embed.add_field(name="Current Job:", value=job.title if job else "Unemployed", inline=True)
             embed.add_field(name="Party:", value=party.name if party else "None", inline=True)
             embed.add_field(name="SIR Status:", value=sir_record.status if sir_record else "Not flagged", inline=True)
+            embed.add_field(name="Last active:", value=f"<t:{int(citizen.last_active.timestamp())}:R>" if citizen and citizen.last_active else "Never", inline=True)
             await interaction.response.send_message(embed=embed, ephemeral=True)
         finally:
             session.close()

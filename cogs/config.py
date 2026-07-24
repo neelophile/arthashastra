@@ -22,9 +22,6 @@ class Config(commands.Cog):
         session = get_session()
         try:
             citizen = citizenship(session, interaction.user.id)
-            if not citizen:
-                await interaction.response.send_message("You are not registered yet.", ephemeral=True)
-                return
             citizen.profile_access = status == "public"
             session.commit()
             await interaction.response.send_message(f"Your profile access has been set to {status}.")

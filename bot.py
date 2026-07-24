@@ -6,6 +6,7 @@ from db.database import init_db, get_session
 from json import load
 from random import choice
 from cogs.employment import has_role
+from db.models import SIRRecord, utcnow, Citizen
 
 
 load_dotenv()
@@ -45,18 +46,19 @@ async def on_app_command_completion(interaction: Interaction, command):
 async def on_message(message):
     if message.author.bot:
         return
-    if message.channel.name == "report":
+    if not isinstance(message.channel, DMChannel):
         session = get_session()
         try:
+            citizen = session.get(Citizen, message.author.id)
+            if citizen:
+                citizen.last_active = utcnow()
             record = session.query(SIRRecord).filter_by(user_id=message.author.id, status="pinged").first()
             if record:
                 record.status = "responded"
-                session.commit()
                 await message.add_reaction("✅")
+            session.commit()
         finally:
             session.close()
-    if not isinstance(message.channel, DMChannel):
-        return
     await bot.process_commands(message)
 
 
